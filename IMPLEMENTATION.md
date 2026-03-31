@@ -3,15 +3,6 @@
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
 
-## Phase 4 — Provider Model + Tool Types (`internal/provider/model.go`, `tool.go`)
-
-| | |
-|---|---|
-| **Test** | `Model` struct construction, `ModelCost`, `Tool` struct |
-| **Implement** | `Model`, `ModelCost`, `Tool` |
-
----
-
 ## Phase 5 — Provider Options + Context (`internal/provider/options.go`, `context.go`)
 
 | | |

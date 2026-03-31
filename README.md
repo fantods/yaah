@@ -10,33 +10,14 @@ Stateful coding agent in Go with tool execution, event streaming via typed chann
 
 ## Installation
 
+Requires [Go 1.21+](https://go.dev/dl/).
+
 ```bash
-go build ./...
+go install github.com/fantods/yaah@latest
 ```
 
-Requires Go 1.25.
+This places a `yaah` binary in `$GOPATH/bin` (or `$HOME/go/bin` by default). Make sure that directory is on your `PATH`.
 
-## Quick Start
-
-```go
-agent := agent.NewAgent(agent.AgentOptions{
-    State: &agent.AgentState{
-        SystemPrompt: "You are a helpful assistant.",
-        Model:        provider.Model{ID: "claude-sonnet-4", API: "anthropic-api-key"},
-    },
-})
-
-unsubscribe := agent.Subscribe(func(event agent.AgentEvent, ctx context.Context) {
-    switch e := event.(type) {
-    case agent.MessageUpdateEvent:
-        if delta, ok := e.AssistantMessageEvent.(provider.EventTextDelta); ok {
-            fmt.Print(delta.Delta)
-        }
-    }
-})
-
-agent.Prompt(ctx, "Hello!")
-```
 
 ## Architecture
 

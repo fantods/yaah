@@ -2,23 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
----
-
-## Phase 0 — Project Scaffold
-
-- `go.mod`, directory structure, build verification
-
----
-
-## Phase 1 — Content Blocks (`internal/message/content.go`)
-
-| | |
-|---|---|
-| **Test** | JSON round-trip, type discrimination |
-| **Implement** | `TextContent`, `ThinkingContent`, `ImageContent`, `ToolCall`, `ContentBlock` union |
-
----
-
 ## Phase 2 — Usage Types (`internal/message/usage.go`)
 
 | | |

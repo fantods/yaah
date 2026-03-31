@@ -2,14 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 2 — Usage Types (`internal/message/usage.go`)
-
-| | |
-|---|---|
-| **Test** | `StopReason` constants, `Usage` struct, cost calculation |
-| **Implement** | `Usage`, `StopReason`, `Cost` types |
-
----
 
 ## Phase 3 — Message Types (`internal/message/message.go`)
 

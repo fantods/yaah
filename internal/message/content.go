@@ -1,5 +1,7 @@
 package message
 
+import "encoding/json"
+
 type ContentBlock interface {
 	contentBlock()
 }
@@ -38,3 +40,61 @@ type ToolCall struct {
 }
 
 func (ToolCall) contentBlock() {}
+
+type contentBlockProxy struct {
+	Type string `json:"type"`
+}
+
+func unmarshalContentBlocks(data []byte) ([]ContentBlock, error) {
+	if string(data) == "null" {
+		return nil, nil
+	}
+
+	var raw []json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+
+	blocks := make([]ContentBlock, 0, len(raw))
+	for _, item := range raw {
+		var proxy contentBlockProxy
+		if err := json.Unmarshal(item, &proxy); err != nil {
+			return nil, err
+		}
+
+		var block ContentBlock
+		switch proxy.Type {
+		case "text":
+			var tc TextContent
+			if err := json.Unmarshal(item, &tc); err != nil {
+				return nil, err
+			}
+			block = tc
+		case "thinking":
+			var tc ThinkingContent
+			if err := json.Unmarshal(item, &tc); err != nil {
+				return nil, err
+			}
+			block = tc
+		case "image":
+			var ic ImageContent
+			if err := json.Unmarshal(item, &ic); err != nil {
+				return nil, err
+			}
+			block = ic
+		case "toolCall":
+			var tc ToolCall
+			if err := json.Unmarshal(item, &tc); err != nil {
+				return nil, err
+			}
+			block = tc
+		default:
+			blocks = append(blocks, nil)
+			continue
+		}
+
+		blocks = append(blocks, block)
+	}
+
+	return blocks, nil
+}

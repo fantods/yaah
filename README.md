@@ -1,4 +1,4 @@
-# yaah
+# yaah - Yet Another Agent Harness
 
 Stateful coding agent in Go with tool execution, event streaming via typed channels, multi-provider support, and a bubbletea TUI. 
 

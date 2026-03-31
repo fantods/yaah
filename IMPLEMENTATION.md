@@ -3,15 +3,6 @@
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
 
-## Phase 3 — Message Types (`internal/message/message.go`)
-
-| | |
-|---|---|
-| **Test** | `Message` union interface, JSON serialization for each variant |
-| **Implement** | `UserMessage`, `AssistantMessage`, `ToolResultMessage`, `Message` interface |
-
----
-
 ## Phase 4 — Provider Model + Tool Types (`internal/provider/model.go`, `tool.go`)
 
 | | |

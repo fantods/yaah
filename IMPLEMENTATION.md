@@ -2,51 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 11 — Simple Options Helpers (`internal/provider/simple_options.go`)
-
-| | |
-|---|---|
-| **Test** | `BuildBaseOptions`, `AdjustMaxTokensForThinking` |
-| **Implement** | Shared option helpers |
-
----
-
-## Phase 12 — Anthropic Provider: Convert (`internal/provider/anthropic/convert.go`)
-
-| | |
-|---|---|
-| **Test** | `Message` → Anthropic SDK type conversion (table-driven), tool conversion |
-| **Implement** | `convertMessages`, `convertTools` |
-
----
-
-## Phase 13 — Anthropic Provider: Parse (`internal/provider/anthropic/parse.go`)
-
-| | |
-|---|---|
-| **Test** | SSE event parsing, delta handling |
-| **Implement** | `parseEvent`, `handleDelta` functions |
-
----
-
-## Phase 14 — Anthropic Provider: Stream (`internal/provider/anthropic/anthropic.go`)
-
-| | |
-|---|---|
-| **Test** | Stream function returns correct `EventStream`, event sequence matches expected flow |
-| **Implement** | `StreamAnthropic`, `StreamSimpleAnthropic` |
-
----
-
-## Phase 15 — Anthropic Provider: Options (`internal/provider/anthropic/options.go`)
-
-| | |
-|---|---|
-| **Test** | Cache control, stealth mode option construction |
-| **Implement** | `AnthropicOptions`, cache control, stealth mode |
-
----
-
 ## Phase 16 — OpenAI Provider: Convert (`internal/provider/openai/convert.go`)
 
 | | |

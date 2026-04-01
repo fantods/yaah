@@ -3,15 +3,6 @@
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
 
-## Phase 5 — Provider Options + Context (`internal/provider/options.go`, `context.go`)
-
-| | |
-|---|---|
-| **Test** | `ThinkingLevel` enum, `ThinkingBudgets`, `StreamOptions` construction, `Context` construction |
-| **Implement** | `ThinkingLevel`, `ThinkingBudgets`, `StreamOptions`, `SimpleStreamOptions`, `Context` |
-
----
-
 ## Phase 6 — Provider Event Types (`internal/provider/events.go`)
 
 | | |

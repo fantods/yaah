@@ -2,34 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-
-## Phase 8 — Provider Registry (`internal/provider/registry.go`)
-
-| | |
-|---|---|
-| **Test** | `Register`, `Lookup` found/not-found, concurrent access, overwrite |
-| **Implement** | `sync.Map`-based registry with `Register`/`Lookup` |
-
----
-
-## Phase 9 — Partial JSON Parser (`internal/provider/partial_json.go`)
-
-| | |
-|---|---|
-| **Test** | Incremental parsing, complete/incomplete JSON, edge cases |
-| **Implement** | Streaming JSON parser for tool call arguments |
-
----
-
-## Phase 10 — Cross-Provider Transforms (`internal/provider/transform.go`)
-
-| | |
-|---|---|
-| **Test** | Tool call ID normalization, thinking block handling, message transformation |
-| **Implement** | Transform functions |
-
----
-
 ## Phase 11 — Simple Options Helpers (`internal/provider/simple_options.go`)
 
 | | |

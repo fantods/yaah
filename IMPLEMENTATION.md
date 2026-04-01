@@ -3,26 +3,6 @@
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
 
-## Phase 6 — Provider Event Types (`internal/provider/events.go`)
-
-| | |
-|---|---|
-| **Test** | Each event type satisfies `AssistantMessageEvent` interface, field access |
-| **Implement** | All 11 event types + interface |
-
----
-
-## Phase 7 — EventStream (`internal/provider/eventstream.go`)
-
-| | |
-|---|---|
-| **Test** | Push/Events/End flow, `Result` blocking, concurrent `Push`, stream completion, overflow protection |
-| **Implement** | `EventStream[T, R]` generic struct |
-
-> This is the most critical piece — needs thorough concurrent testing.
-
----
-
 ## Phase 8 — Provider Registry (`internal/provider/registry.go`)
 
 | | |

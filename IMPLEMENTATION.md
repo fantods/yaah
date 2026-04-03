@@ -2,51 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 16 — OpenAI Provider: Convert (`internal/provider/openai/convert.go`)
-
-| | |
-|---|---|
-| **Test** | `Message` → OpenAI SDK type conversion, tool conversion |
-| **Implement** | `convertMessages`, `convertTools` |
-
----
-
-## Phase 17 — OpenAI Provider: Parse (`internal/provider/openai/parse.go`)
-
-| | |
-|---|---|
-| **Test** | Chunk parsing, tool call delta assembly, reasoning |
-| **Implement** | `parseChunk`, `assembleToolCallDeltas` |
-
----
-
-## Phase 18 — OpenAI Provider: Stream (`internal/provider/openai/openai.go`)
-
-| | |
-|---|---|
-| **Test** | Stream function, event sequence |
-| **Implement** | `StreamOpenAICompletions`, `StreamSimpleOpenAICompletions` |
-
----
-
-## Phase 19 — OpenAI Provider: Options + Responses (`internal/provider/openai/options.go`, `responses.go`)
-
-| | |
-|---|---|
-| **Test** | Compat flags, reasoning effort mapping, responses API variant |
-| **Implement** | OpenAI options, Responses API |
-
----
-
-## Phase 20 — z.ai Provider (`internal/provider/zai/`)
-
-| | |
-|---|---|
-| **Test** | z.ai-specific conversion, options |
-| **Implement** | `StreamZai`, `StreamSimpleZai`, convert, options |
-
----
-
 ## Phase 21 — Register Builtins (`internal/provider/register.go`)
 
 | | |

@@ -2,42 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 25 — Agent State (`internal/agent/state.go`)
-
-| | |
-|---|---|
-| **Test** | New state, state mutations (set streaming, add message, track tool calls, error propagation) |
-| **Implement** | `AgentState`, mutation methods |
-
----
-
-## Phase 26 — Pending Message Queue (`internal/agent/queue.go`)
-
-| | |
-|---|---|
-| **Test** | Enqueue/dequeue, steering vs follow-up, queue modes, concurrent access |
-| **Implement** | `PendingMessageQueue`, `QueueMode` |
-
----
-
-## Phase 27 — Agent Loop: Core Skeleton (`internal/agent/loop.go`)
-
-| | |
-|---|---|
-| **Test** | `AgentLoop` emits correct event sequence for simple text-only turn (no tool calls), mock `StreamFn` |
-| **Implement** | `AgentLoop`, `streamAssistantResponse` with mock support |
-
----
-
-## Phase 28 — Agent Loop: Tool Calls (`internal/agent/loop.go`)
-
-| | |
-|---|---|
-| **Test** | Loop with tool calls emits correct events, handles multiple rounds |
-| **Implement** | `runLoop` with tool call handling |
-
----
-
 ## Phase 29 — Tool Execution: Sequential (`internal/agent/tool_exec.go`)
 
 | | |

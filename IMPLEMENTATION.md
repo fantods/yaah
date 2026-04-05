@@ -2,42 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 21 — Register Builtins (`internal/provider/register.go`)
-
-| | |
-|---|---|
-| **Test** | `RegisterBuiltins` registers all providers, `Lookup` succeeds for each |
-| **Implement** | `RegisterBuiltins` |
-
----
-
-## Phase 22 — Agent Event Types (`internal/agent/events.go`)
-
-| | |
-|---|---|
-| **Test** | Each event satisfies `AgentEvent` interface |
-| **Implement** | All 9 event types + interface |
-
----
-
-## Phase 23 — Agent Tool Interface (`internal/agent/tool.go`)
-
-| | |
-|---|---|
-| **Test** | `MockTool` implements interface, `AgentToolResult` construction |
-| **Implement** | `AgentTool`, `AgentToolResult`, `AgentToolCall` |
-
----
-
-## Phase 24 — Agent Options (`internal/agent/options.go`)
-
-| | |
-|---|---|
-| **Test** | Options construction, hook types |
-| **Implement** | `AgentOptions`, `AgentLoopConfig`, `BeforeToolCallContext`, `AfterToolCallContext`, hook types |
-
----
-
 ## Phase 25 — Agent State (`internal/agent/state.go`)
 
 | | |

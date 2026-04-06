@@ -2,7 +2,7 @@ package agent
 
 import (
 	"context"
-	"fmt"
+	"sync"
 
 	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
@@ -11,6 +11,7 @@ import (
 type AgentEventStream struct {
 	ch        chan AgentEvent
 	closeOnce chan struct{}
+	mu        sync.Mutex
 }
 
 func NewAgentEventStream() *AgentEventStream {
@@ -21,6 +22,8 @@ func NewAgentEventStream() *AgentEventStream {
 }
 
 func (s *AgentEventStream) Push(evt AgentEvent) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	select {
 	case <-s.closeOnce:
 		return
@@ -33,6 +36,8 @@ func (s *AgentEventStream) Push(evt AgentEvent) {
 }
 
 func (s *AgentEventStream) Close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	select {
 	case <-s.closeOnce:
 		return
@@ -51,6 +56,7 @@ func AgentLoop(
 	opts AgentOptions,
 	state *AgentState,
 	streamFn provider.StreamFn,
+	queue *PendingMessageQueue,
 ) <-chan AgentEvent {
 	out := NewAgentEventStream()
 
@@ -61,7 +67,7 @@ func AgentLoop(
 		state.SetStreaming(true)
 		defer state.SetStreaming(false)
 
-		runLoop(ctx, opts, state, streamFn, out)
+		runLoop(ctx, opts, state, streamFn, out, queue)
 
 		out.Push(AgentEndEvent{Messages: state.GetMessages()})
 	}()
@@ -75,13 +81,17 @@ func runLoop(
 	state *AgentState,
 	streamFn provider.StreamFn,
 	out *AgentEventStream,
+	queue *PendingMessageQueue,
 ) {
 	maxTurns := opts.LoopConfig.MaxTurns
 	if maxTurns <= 0 {
 		maxTurns = 1
 	}
 
-	for range maxTurns {
+	turnsRemaining := maxTurns
+
+	for turnsRemaining > 0 {
+		turnsRemaining--
 		state.IncrementTurn()
 		out.Push(TurnStartEvent{})
 
@@ -101,11 +111,24 @@ func runLoop(
 				Message:     msg,
 				ToolResults: []message.ToolResultMessage{},
 			})
+
+			if queue != nil {
+				if steerMsg, ok := queue.DequeueByMode(QueueModeSteering); ok {
+					state.AddMessage(steerMsg)
+					turnsRemaining = maxTurns
+					continue
+				}
+				if followUpMsg, ok := queue.DequeueByMode(QueueModeFollowUp); ok {
+					state.AddMessage(followUpMsg)
+					turnsRemaining = maxTurns
+					continue
+				}
+			}
 			return
 		}
 
 		toolCalls := extractToolCalls(msg)
-		toolResults := executeToolCallsInline(ctx, opts, toolCalls, out)
+		toolResults := executeToolCalls(ctx, opts, toolCalls, out)
 
 		for _, tr := range toolResults {
 			state.AddMessage(tr)
@@ -115,6 +138,13 @@ func runLoop(
 			Message:     msg,
 			ToolResults: toolResults,
 		})
+
+		if queue != nil {
+			if steerMsg, ok := queue.DequeueByMode(QueueModeSteering); ok {
+				state.AddMessage(steerMsg)
+				turnsRemaining = maxTurns
+			}
+		}
 	}
 }
 
@@ -195,94 +225,6 @@ func extractToolCalls(msg message.AssistantMessage) []message.ToolCall {
 		}
 	}
 	return calls
-}
-
-func executeToolCallsInline(
-	ctx context.Context,
-	opts AgentOptions,
-	calls []message.ToolCall,
-	out *AgentEventStream,
-) []message.ToolResultMessage {
-	toolMap := make(map[string]AgentTool, len(opts.Tools))
-	for _, t := range opts.Tools {
-		toolMap[t.Info().Name] = t
-	}
-
-	results := make([]message.ToolResultMessage, 0, len(calls))
-	for _, tc := range calls {
-		out.Push(ToolExecStartEvent{
-			ToolCallID: tc.ID,
-			ToolName:   tc.Name,
-			Args:       tc.Arguments,
-		})
-
-		tool, found := toolMap[tc.Name]
-		if !found {
-			errMsg := fmt.Sprintf("tool not found: %s", tc.Name)
-			out.Push(ToolExecEndEvent{
-				ToolCallID: tc.ID,
-				ToolName:   tc.Name,
-				Result:     errMsg,
-				IsError:    true,
-			})
-			results = append(results, message.ToolResultMessage{
-				Role:       "toolResult",
-				ToolCallID: tc.ID,
-				ToolName:   tc.Name,
-				Content: []message.ContentBlock{
-					message.TextContent{Text: errMsg},
-				},
-				IsError: true,
-			})
-			continue
-		}
-
-		result, err := tool.Run(ctx, AgentToolCall{
-			ID:   tc.ID,
-			Name: tc.Name,
-			Args: tc.Arguments,
-		})
-		if err != nil {
-			out.Push(ToolExecEndEvent{
-				ToolCallID: tc.ID,
-				ToolName:   tc.Name,
-				Result:     err.Error(),
-				IsError:    true,
-			})
-			results = append(results, message.ToolResultMessage{
-				Role:       "toolResult",
-				ToolCallID: tc.ID,
-				ToolName:   tc.Name,
-				Content: []message.ContentBlock{
-					message.TextContent{Text: err.Error()},
-				},
-				IsError: true,
-			})
-			continue
-		}
-
-		out.Push(ToolExecEndEvent{
-			ToolCallID: tc.ID,
-			ToolName:   tc.Name,
-			Result:     result.Content,
-			IsError:    result.IsError,
-		})
-
-		content := result.Content
-		if content == nil {
-			content = []message.ContentBlock{}
-		}
-
-		results = append(results, message.ToolResultMessage{
-			Role:       "toolResult",
-			ToolCallID: tc.ID,
-			ToolName:   tc.Name,
-			Content:    content,
-			IsError:    result.IsError,
-		})
-	}
-
-	return results
 }
 
 func buildProviderContext(opts AgentOptions, state *AgentState) provider.Context {

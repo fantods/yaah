@@ -2,42 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 29 — Tool Execution: Sequential (`internal/agent/tool_exec.go`)
-
-| | |
-|---|---|
-| **Test** | Sequential execution with mock tools, before/after hooks, error handling |
-| **Implement** | `executeToolCalls` sequential mode |
-
----
-
-## Phase 30 — Tool Execution: Parallel (`internal/agent/tool_exec.go`)
-
-| | |
-|---|---|
-| **Test** | Parallel execution, result ordering, concurrent safety |
-| **Implement** | `executeToolCalls` parallel mode |
-
----
-
-## Phase 31 — Agent Struct (`internal/agent/agent.go`)
-
-| | |
-|---|---|
-| **Test** | `NewAgent`, `Prompt`, `Subscribe`, `Abort`, `Steer`, `FollowUp`, `State` |
-| **Implement** | `Agent` struct with all public methods |
-
----
-
-## Phase 32 — Agent Proxy (`internal/agent/proxy.go`)
-
-| | |
-|---|---|
-| **Test** | Proxy stream function, request routing |
-| **Implement** | `StreamProxy` |
-
----
-
 ## Phase 33 — Agent Loop: Steering + Follow-Up (`internal/agent/loop.go`)
 
 | | |

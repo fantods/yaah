@@ -286,7 +286,7 @@ func TestStreamSimpleReturnsEventStream(t *testing.T) {
 }
 
 func TestDefaultBaseURL(t *testing.T) {
-	assert.Equal(t, "https://api.z.ai/v1", DefaultBaseURL)
+	assert.Equal(t, "https://api.z.ai/api/coding/paas/v4", DefaultBaseURL)
 }
 
 func TestNewClientUsesDefaultBaseURL(t *testing.T) {

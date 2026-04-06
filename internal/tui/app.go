@@ -200,6 +200,7 @@ func (m *AppModel) handleAgentEvent(evt agent.AgentEvent) tea.Cmd {
 		m.thinking.Reset()
 
 	case agent.MessageStartEvent:
+		m.chat.StartAssistantMessage()
 
 	case agent.MessageUpdateEvent:
 		switch ev := e.AssistantMessageEvent.(type) {

@@ -2,6 +2,8 @@ package zai
 
 import (
 	"context"
+
+	"github.com/fantods/yaah/internal/logging"
 	"time"
 
 	"github.com/fantods/yaah/internal/message"
@@ -151,7 +153,12 @@ func newClient(model provider.Model, opts *provider.StreamOptions) openai.Client
 
 	apiKey := ResolveAPIKey(opts)
 	if apiKey != nil {
-		clientOpts = append(clientOpts, option.WithAPIKey(*apiKey))
+		token, err := generateToken(*apiKey)
+		if err != nil {
+			logging.Debug("zai: failed to generate token: %v", err)
+		} else {
+			clientOpts = append(clientOpts, option.WithHeader("Authorization", "Bearer "+token))
+		}
 	}
 
 	if opts != nil {

@@ -34,6 +34,15 @@ type Model struct {
 
 var catalog = []Model{
 	{
+		ID:            "glm-5.1",
+		Name:          "GLM 5.1",
+		API:           "zai",
+		Provider:      "zai",
+		MaxTokens:     8192,
+		ContextWindow: 128000,
+		Input:         []string{"text", "image"},
+	},
+	{
 		ID:            "claude-sonnet-4-20250514",
 		Name:          "Claude Sonnet 4",
 		API:           "anthropic-messages",

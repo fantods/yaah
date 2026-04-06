@@ -6,7 +6,7 @@ import (
 	"github.com/fantods/yaah/internal/provider"
 )
 
-const DefaultBaseURL = "https://api.z.ai/v1"
+const DefaultBaseURL = "https://api.z.ai/api/coding/paas/v4"
 
 const EnvAPIKey = "ZAI_API_KEY"
 

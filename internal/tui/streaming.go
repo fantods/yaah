@@ -4,14 +4,15 @@ import "strings"
 
 type StreamingModel struct {
 	theme      Theme
-	buffer     strings.Builder
+	buffer     *strings.Builder
 	thinking   string
 	isThinking bool
 }
 
 func NewStreamingModel(theme Theme) StreamingModel {
 	return StreamingModel{
-		theme: theme,
+		theme:  theme,
+		buffer: &strings.Builder{},
 	}
 }
 

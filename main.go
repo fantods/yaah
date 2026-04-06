@@ -19,7 +19,7 @@ import (
 
 func main() {
 	debug := flag.String("debug", "", "enable debug logging to file (e.g. --debug yaah.log)")
-	modelID := flag.String("model", "claude-sonnet-4-20250514", "model to use (run --list-models to see options)")
+	modelID := flag.String("model", "glm-5.1", "model to use (run --list-models to see options)")
 	listModels := flag.Bool("list-models", false, "list available models and exit")
 	flag.Parse()
 

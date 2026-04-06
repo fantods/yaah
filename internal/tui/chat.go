@@ -76,8 +76,13 @@ func (m *ChatModel) AddAssistantMessage(text string) {
 	m.renderMessages()
 }
 
+func (m *ChatModel) StartAssistantMessage() {
+	m.messages = append(m.messages, chatMessage{role: "assistant", content: ""})
+	m.renderMessages()
+}
+
 func (m *ChatModel) AppendDelta(delta string) {
-	if len(m.messages) == 0 {
+	if len(m.messages) == 0 || m.messages[len(m.messages)-1].role != "assistant" {
 		m.messages = append(m.messages, chatMessage{role: "assistant", content: ""})
 	}
 	last := &m.messages[len(m.messages)-1]

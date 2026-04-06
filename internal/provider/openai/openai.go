@@ -14,6 +14,14 @@ import (
 	"github.com/openai/openai-go/shared"
 )
 
+func init() {
+	provider.Register(provider.Provider{
+		API:          "openai-completions",
+		Stream:       Stream,
+		StreamSimple: StreamSimple,
+	})
+}
+
 func Stream(model provider.Model, ctx provider.Context, opts *provider.StreamOptions) *provider.AssistantMessageEventStream {
 	stream := provider.NewEventStream[provider.AssistantMessageEvent, message.AssistantMessage](
 		func(evt provider.AssistantMessageEvent) bool {

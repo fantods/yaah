@@ -13,6 +13,7 @@ func (AgentStartEvent) agentEvent() {}
 
 type AgentEndEvent struct {
 	Messages []message.Message
+	Error    error
 }
 
 func (AgentEndEvent) agentEvent() {}

@@ -78,6 +78,7 @@ func TestDefaultKeyMap(t *testing.T) {
 	assert.True(t, km.Help.Enabled())
 	assert.True(t, km.Clear.Enabled())
 	assert.True(t, km.ToggleThinking.Enabled())
+	assert.True(t, km.SwitchModel.Enabled())
 }
 
 func TestAgentEventMsgWrapping(t *testing.T) {

@@ -1673,8 +1673,13 @@ func TestStreamProxyReturnsEmptyStreamForUnknownProvider(t *testing.T) {
 		nil,
 	)
 
-	_, ok := <-stream.Events()
-	assert.False(t, ok, "expected closed stream for unknown provider")
+	evt, ok := <-stream.Events()
+	assert.True(t, ok, "expected EventError on stream for unknown provider")
+	_, isError := evt.(provider.EventError)
+	assert.True(t, isError, "expected EventError event for unknown provider")
+
+	_, ok = <-stream.Events()
+	assert.False(t, ok, "expected stream to close after error event")
 }
 
 func TestStreamProxyPassesArgumentsToProvider(t *testing.T) {

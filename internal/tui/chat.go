@@ -85,6 +85,11 @@ func (m *ChatModel) AppendDelta(delta string) {
 	m.renderMessages()
 }
 
+func (m *ChatModel) Clear() {
+	m.messages = []chatMessage{}
+	m.renderMessages()
+}
+
 func (m *ChatModel) renderMessages() {
 	if !m.ready {
 		return

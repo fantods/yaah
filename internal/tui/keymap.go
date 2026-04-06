@@ -12,6 +12,7 @@ type KeyMap struct {
 	Help           key.Binding
 	Clear          key.Binding
 	ToggleThinking key.Binding
+	SwitchModel    key.Binding
 }
 
 func DefaultKeyMap() KeyMap {
@@ -51,6 +52,10 @@ func DefaultKeyMap() KeyMap {
 		ToggleThinking: key.NewBinding(
 			key.WithKeys("ctrl+t"),
 			key.WithHelp("ctrl+t", "toggle thinking"),
+		),
+		SwitchModel: key.NewBinding(
+			key.WithKeys("ctrl+m"),
+			key.WithHelp("ctrl+m", "switch model"),
 		),
 	}
 }

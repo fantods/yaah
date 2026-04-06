@@ -8,9 +8,11 @@ Stateful coding agent in Go with tool execution, event streaming via typed chann
 - **OpenAI** (Chat Completions + Responses API)
 - **z.ai** (OpenAI-compatible with extensions)
 
-## Installation
+## Quick Start
 
 Requires [Go 1.21+](https://go.dev/dl/).
+
+### 1. Install
 
 ```bash
 go install github.com/fantods/yaah@latest
@@ -18,6 +20,88 @@ go install github.com/fantods/yaah@latest
 
 This places a `yaah` binary in `$GOPATH/bin` (or `$HOME/go/bin` by default). Make sure that directory is on your `PATH`.
 
+### 2. Set an API key
+
+At least one provider key is required. Export the environment variable for your chosen provider:
+
+| Provider | Variable | Get a key |
+|----------|----------|-----------|
+| Anthropic | `ANTHROPIC_API_KEY` | https://console.anthropic.com |
+| OpenAI | `OPENAI_API_KEY` | https://platform.openai.com |
+| z.ai | `ZAI_API_KEY` | https://z.ai |
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+### 3. Run
+
+```bash
+yaah
+```
+
+Providers (Anthropic, OpenAI, z.ai) register themselves via `init()` — no manual registration needed. Just import the ones you need with blank imports if building your own entrypoint:
+
+```go
+import (
+    _ "github.com/fantods/yaah/internal/provider/anthropic"
+    _ "github.com/fantods/yaah/internal/provider/openai"
+    _ "github.com/fantods/yaah/internal/provider/zai"
+)
+```
+
+Type a message and press Enter. The agent streams the response in real-time. Press `?` for keybindings.
+
+### 4. (Optional) Configure the agent
+
+**System prompt** — set a system prompt to control the agent's behavior:
+
+```go
+a := agent.NewAgent(
+    agent.AgentOptions{
+        Model:        model,
+        SystemPrompt: "You are a helpful coding assistant.",
+        LoopConfig: agent.AgentLoopConfig{
+            MaxTurns: 10,
+        },
+    },
+    agent.StreamProxy,
+)
+```
+
+**Tools** — register tools the agent can call during conversation:
+
+```go
+readFileTool := agent.AgentTool{
+    Name:        "read_file",
+    Label:       "Read File",
+    Description: "Read a file's contents",
+    Parameters:  schema,
+    Execute: func(toolCallID string, params any, signal context.Context, onUpdate func(agent.AgentToolResult)) (agent.AgentToolResult, error) {
+        // ... execution logic
+    },
+}
+
+a := agent.NewAgent(
+    agent.AgentOptions{
+        Model: model,
+        Tools: []agent.AgentTool{readFileTool},
+        // ...
+    },
+    agent.StreamProxy,
+)
+```
+
+**Thinking level** — enable extended thinking for supported models:
+
+```go
+agent.AgentOptions{
+    // ...
+    StreamOpts: provider.StreamOptions{
+        ThinkingLevel: provider.ThinkingLevelMedium,
+    },
+}
+```
 
 ## Architecture
 

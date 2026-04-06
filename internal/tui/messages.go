@@ -9,11 +9,13 @@ type agentEventMsg struct {
 	Event agent.AgentEvent
 }
 
+type streamEndedMsg struct{}
+
 func waitForAgentEvents(ch <-chan agent.AgentEvent) tea.Cmd {
 	return func() tea.Msg {
 		evt, ok := <-ch
 		if !ok {
-			return nil
+			return streamEndedMsg{}
 		}
 		return agentEventMsg{Event: evt}
 	}

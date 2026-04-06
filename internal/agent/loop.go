@@ -2,8 +2,10 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
+	"github.com/fantods/yaah/internal/logging"
 	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
 )
@@ -63,13 +65,22 @@ func AgentLoop(
 	go func() {
 		defer out.Close()
 		out.Push(AgentStartEvent{})
+		logging.Debug("agent loop started")
 
 		state.SetStreaming(true)
 		defer state.SetStreaming(false)
 
-		runLoop(ctx, opts, state, streamFn, out, queue)
+		loopErr := runLoop(ctx, opts, state, streamFn, out, queue)
+		if loopErr != nil {
+			logging.Debug("agent loop error: %v", loopErr)
+		} else {
+			logging.Debug("agent loop completed")
+		}
 
-		out.Push(AgentEndEvent{Messages: state.GetMessages()})
+		out.Push(AgentEndEvent{
+			Messages: state.GetMessages(),
+			Error:    loopErr,
+		})
 	}()
 
 	return out.Events()
@@ -82,7 +93,7 @@ func runLoop(
 	streamFn provider.StreamFn,
 	out *AgentEventStream,
 	queue *PendingMessageQueue,
-) {
+) error {
 	maxTurns := opts.LoopConfig.MaxTurns
 	if maxTurns <= 0 {
 		maxTurns = 1
@@ -97,12 +108,16 @@ func runLoop(
 
 		pctx := buildProviderContext(opts, state)
 		stream := streamFn(opts.Model, pctx, &opts.StreamOpts)
+		logging.Debug("turn %d: streaming with model=%s api=%s maxTokens=%d", state.GetTurn(), opts.Model.ID, opts.Model.API, opts.Model.MaxTokens)
 
 		msg, err := streamAssistantResponse(ctx, stream, out)
 		if err != nil {
 			state.SetError(err)
-			return
+			logging.Debug("turn %d: stream error: %v", state.GetTurn(), err)
+			return err
 		}
+
+		logging.Debug("turn %d: stream completed, stopReason=%s", state.GetTurn(), msg.StopReason)
 
 		state.AddMessage(msg)
 
@@ -124,11 +139,12 @@ func runLoop(
 					continue
 				}
 			}
-			return
+			return nil
 		}
 
 		toolCalls := extractToolCalls(msg)
 		toolResults := executeToolCalls(ctx, opts, toolCalls, out)
+		logging.Debug("turn %d: executed %d tool calls", state.GetTurn(), len(toolCalls))
 
 		for _, tr := range toolResults {
 			state.AddMessage(tr)
@@ -146,6 +162,7 @@ func runLoop(
 			}
 		}
 	}
+	return nil
 }
 
 func streamAssistantResponse(
@@ -199,7 +216,13 @@ func streamAssistantResponse(
 				out.Push(MessageStartEvent{Message: current})
 			}
 			out.Push(MessageEndEvent{Message: current})
-			return current, nil
+			errMsg := "stream error: provider returned EventError"
+			if e.Err != nil {
+				errMsg = e.Err.Error()
+			} else if e.Message.ErrorMessage != "" {
+				errMsg = e.Message.ErrorMessage
+			}
+			return current, fmt.Errorf("%s", errMsg)
 		}
 	}
 

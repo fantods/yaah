@@ -77,6 +77,18 @@ func (a *Agent) State() *AgentState {
 	return a.state
 }
 
+func (a *Agent) SetModel(model provider.Model) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.opts.Model = model
+}
+
+func (a *Agent) ModelID() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.opts.Model.ID
+}
+
 func (a *Agent) startLoop(parent context.Context) <-chan AgentEvent {
 	a.mu.Lock()
 	if a.cancel != nil {

@@ -89,6 +89,7 @@ func (EventDone) assistantEvent() {}
 type EventError struct {
 	Reason  message.StopReason
 	Message message.AssistantMessage
+	Err     error
 }
 
 func (EventError) assistantEvent() {}

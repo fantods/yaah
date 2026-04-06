@@ -75,7 +75,7 @@ func TestDefaultKeyMap(t *testing.T) {
 	assert.True(t, km.Quit.Enabled())
 	assert.True(t, km.Newline.Enabled())
 	assert.True(t, km.Abort.Enabled())
-	assert.True(t, km.Help.Enabled())
+	assert.True(t, km.CommandPalette.Enabled())
 	assert.True(t, km.Clear.Enabled())
 	assert.True(t, km.ToggleThinking.Enabled())
 	assert.True(t, km.SwitchModel.Enabled())

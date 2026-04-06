@@ -9,7 +9,7 @@ type KeyMap struct {
 	Quit           key.Binding
 	Newline        key.Binding
 	Abort          key.Binding
-	Help           key.Binding
+	CommandPalette key.Binding
 	Clear          key.Binding
 	ToggleThinking key.Binding
 	SwitchModel    key.Binding
@@ -41,9 +41,9 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("ctrl+x"),
 			key.WithHelp("ctrl+x", "abort"),
 		),
-		Help: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "help"),
+		CommandPalette: key.NewBinding(
+			key.WithKeys("ctrl+p"),
+			key.WithHelp("ctrl+p", "commands"),
 		),
 		Clear: key.NewBinding(
 			key.WithKeys("ctrl+l"),

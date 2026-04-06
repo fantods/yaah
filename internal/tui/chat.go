@@ -100,22 +100,59 @@ func (m *ChatModel) renderMessages() {
 		return
 	}
 
+	contentWidth := m.width - m.viewport.Style.GetHorizontalFrameSize()
+	if contentWidth < 10 {
+		contentWidth = 10
+	}
+
 	var b strings.Builder
 	for _, msg := range m.messages {
+		var prefix string
 		switch msg.role {
 		case "user":
-			b.WriteString(m.theme.UserStyle().Render("You: "))
-			b.WriteString(msg.content)
-			b.WriteString("\n\n")
+			prefix = m.theme.UserStyle().Render("You: ")
 		case "assistant":
-			b.WriteString(m.theme.MutedStyle().Render("Assistant: "))
-			b.WriteString(msg.content)
-			b.WriteString("\n\n")
+			prefix = m.theme.MutedStyle().Render("Assistant: ")
 		}
+
+		prefixWidth := lipgloss.Width(prefix)
+		wrapWidth := contentWidth - prefixWidth
+		if wrapWidth < 10 {
+			wrapWidth = 10
+		}
+
+		wrapped := wrapLines(msg.content, wrapWidth)
+		lines := strings.Split(wrapped, "\n")
+		for i, line := range lines {
+			if i == 0 {
+				b.WriteString(prefix)
+			} else {
+				b.WriteString(strings.Repeat(" ", prefixWidth))
+			}
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
 	}
 
 	m.viewport.SetContent(b.String())
 	if m.autoScroll {
 		m.viewport.GotoBottom()
 	}
+}
+
+func wrapLines(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+	var b strings.Builder
+	for _, line := range strings.Split(text, "\n") {
+		if line == "" {
+			b.WriteString("\n")
+			continue
+		}
+		b.WriteString(lipgloss.NewStyle().Width(width).MaxWidth(width).Render(line))
+		b.WriteString("\n")
+	}
+	return b.String()
 }

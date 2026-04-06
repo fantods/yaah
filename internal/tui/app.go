@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -18,18 +17,20 @@ const (
 	stateIdle appState = iota
 	stateStreaming
 	stateModelPicker
+	stateCommandPalette
 )
 
 type AppModel struct {
-	theme     Theme
-	keys      KeyMap
-	chat      ChatModel
-	input     InputModel
-	thinking  ThinkingModel
-	tools     ToolsModel
-	status    StatusModel
-	streaming StreamingModel
-	picker    ModelPicker
+	theme      Theme
+	keys       KeyMap
+	chat       ChatModel
+	input      InputModel
+	thinking   ThinkingModel
+	tools      ToolsModel
+	status     StatusModel
+	streaming  StreamingModel
+	picker     ModelPicker
+	cmdPalette CommandPalette
 
 	agent    *agent.Agent
 	eventCh  <-chan agent.AgentEvent
@@ -37,7 +38,6 @@ type AppModel struct {
 	width    int
 	height   int
 	quitting bool
-	showHelp bool
 	lastErr  string
 }
 
@@ -48,17 +48,18 @@ func NewAppModel(a *agent.Agent, initialModel provider.Model, catalog []provider
 	status.SetModel(initialModel.Name)
 
 	return AppModel{
-		theme:     theme,
-		keys:      keys,
-		chat:      NewChatModel(theme),
-		input:     NewInputModel(theme, keys),
-		thinking:  NewThinkingModel(theme),
-		tools:     NewToolsModel(theme),
-		status:    status,
-		streaming: NewStreamingModel(theme),
-		picker:    NewModelPicker(theme, catalog),
-		agent:     a,
-		state:     stateIdle,
+		theme:      theme,
+		keys:       keys,
+		chat:       NewChatModel(theme),
+		input:      NewInputModel(theme, keys),
+		thinking:   NewThinkingModel(theme),
+		tools:      NewToolsModel(theme),
+		status:     status,
+		streaming:  NewStreamingModel(theme),
+		picker:     NewModelPicker(theme, catalog),
+		cmdPalette: NewCommandPalette(theme),
+		agent:      a,
+		state:      stateIdle,
 	}
 }
 
@@ -84,6 +85,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == stateModelPicker {
 			return m.handlePickerKeys(msg)
 		}
+		if m.state == stateCommandPalette {
+			return m.handlePaletteKeys(msg)
+		}
 
 		switch msg.String() {
 		case "enter":
@@ -106,8 +110,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = stateIdle
 				m.status.SetStreaming(false)
 			}
-		case "?":
-			m.showHelp = !m.showHelp
+		case "ctrl+p":
+			m.cmdPalette.Open(m.state)
+			m.state = stateCommandPalette
+			m.input.Blur()
 			return m, nil
 		case "ctrl+l":
 			m.chat.Clear()
@@ -257,33 +263,48 @@ func (m AppModel) View() string {
 	if m.state == stateModelPicker {
 		pickerView := m.picker.View()
 		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, pickerView)
-	} else if m.showHelp {
-		helpText := m.renderHelp()
-		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, helpText)
+	} else if m.state == stateCommandPalette {
+		paletteView := m.cmdPalette.View()
+		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, paletteView)
 	}
 
 	return fmt.Sprintf("%s\n", body)
 }
 
-func (m AppModel) renderHelp() string {
-	style := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.theme.Border).
-		Padding(1, 2)
-
-	lines := []string{
-		"  Keybindings",
-		"",
-		"  enter         send message",
-		"  shift+enter   newline",
-		"  ctrl+c        quit",
-		"  ctrl+x        abort streaming",
-		"  ctrl+l        clear chat",
-		"  ctrl+t        toggle thinking view",
-		"  ctrl+m        switch model",
-		"  ?             toggle this help",
-		"",
-		"  Press ? to close",
+func (m AppModel) handlePaletteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "up", "k":
+		m.cmdPalette.CursorUp()
+	case "down", "j":
+		m.cmdPalette.CursorDown()
+	case "enter":
+		cmd := m.cmdPalette.SelectedCommand()
+		m.cmdPalette.Close()
+		m.state = stateIdle
+		m.input.Focus()
+		return m, m.executePaletteCommand(cmd)
+	case "esc", "ctrl+p":
+		m.cmdPalette.Close()
+		m.state = stateIdle
+		m.input.Focus()
 	}
-	return style.Render(strings.Join(lines, "\n"))
+	return m, nil
+}
+
+func (m AppModel) executePaletteCommand(cmd string) tea.Cmd {
+	switch cmd {
+	case "switch-model":
+		m.picker.Open(m.agent.ModelID())
+		m.state = stateModelPicker
+		m.input.Blur()
+	case "clear":
+		m.chat.Clear()
+	case "toggle-thinking":
+		m.thinking.Toggle()
+	case "abort":
+		m.agent.Abort()
+		m.state = stateIdle
+		m.status.SetStreaming(false)
+	}
+	return nil
 }

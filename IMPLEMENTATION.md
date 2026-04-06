@@ -2,15 +2,6 @@
 
 Test-first, many small phases. Each phase: write tests, then implement, then verify tests pass. Every phase produces a compilable, testable increment.
 
-## Phase 33 — Agent Loop: Steering + Follow-Up (`internal/agent/loop.go`)
-
-| | |
-|---|---|
-| **Test** | Steering interrupts mid-loop, follow-up continues after completion |
-| **Implement** | Steering/follow-up message injection in `runLoop` |
-
----
-
 ## Phase 34 — TUI: Theme (`internal/tui/theme.go`)
 
 | | |

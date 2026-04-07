@@ -2,14 +2,6 @@ package provider
 
 import "fmt"
 
-type KnownProvider string
-
-const (
-	KnownProviderAnthropic KnownProvider = "anthropic"
-	KnownProviderOpenAI    KnownProvider = "openai"
-	KnownProviderZAI       KnownProvider = "zai"
-)
-
 type ModelCost struct {
 	Input      float64 `json:"input"`
 	Output     float64 `json:"output"`

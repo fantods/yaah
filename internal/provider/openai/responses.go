@@ -9,7 +9,6 @@ import (
 
 	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
-	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/packages/ssestream"
 	"github.com/openai/openai-go/responses"
@@ -55,7 +54,7 @@ func runResponsesStream(
 	opts *provider.StreamOptions,
 	stream *provider.AssistantMessageEventStream,
 ) {
-	client := newResponsesClient(model, opts)
+	client := newClient(model, opts)
 	params := buildResponsesParams(model, pCtx, opts)
 
 	sseStream := client.Responses.NewStreaming(context.Background(), params)
@@ -81,10 +80,6 @@ func runResponsesStream(
 	processResponsesStream(sseStream, partial, stream)
 
 	stream.End(nil)
-}
-
-func newResponsesClient(model provider.Model, opts *provider.StreamOptions) openai.Client {
-	return newClient(model, opts)
 }
 
 func buildResponsesParams(model provider.Model, ctx provider.Context, opts *provider.StreamOptions) responses.ResponseNewParams {
@@ -256,12 +251,7 @@ func convertAssistantMessageForResponses(m message.AssistantMessage) []responses
 }
 
 func convertToolResultMessageForResponses(m message.ToolResultMessage) []responses.ResponseInputItemUnionParam {
-	var textContent string
-	for _, block := range m.Content {
-		if text, ok := block.(message.TextContent); ok {
-			textContent += text.Text
-		}
-	}
+	textContent := message.ExtractText(m.Content)
 
 	if textContent == "" {
 		textContent = "(no output)"

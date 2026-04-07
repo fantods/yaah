@@ -757,12 +757,7 @@ func mockMultiTurnStreamFn(responses []message.AssistantMessage, toolCallsPerTur
 }
 
 func extractText(msg message.AssistantMessage) string {
-	for _, block := range msg.Content {
-		if tc, ok := block.(message.TextContent); ok {
-			return tc.Text
-		}
-	}
-	return ""
+	return message.ExtractText(msg.Content)
 }
 
 func TestAgentLoopWithSingleToolCall(t *testing.T) {

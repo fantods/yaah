@@ -172,39 +172,33 @@ func streamAssistantResponse(
 ) (message.AssistantMessage, error) {
 	var current message.AssistantMessage
 	started := false
+	ensureStarted := func() {
+		if !started {
+			out.Push(MessageStartEvent{Message: current})
+			started = true
+		}
+	}
 
 	for evt := range stream.Events() {
 		switch e := evt.(type) {
 		case provider.EventStart:
 			current = *e.Partial
 		case provider.EventTextStart:
-			if !started {
-				out.Push(MessageStartEvent{Message: current})
-				started = true
-			}
+			ensureStarted()
 		case provider.EventTextDelta:
-			if !started {
-				out.Push(MessageStartEvent{Message: current})
-				started = true
-			}
+			ensureStarted()
 			out.Push(MessageUpdateEvent{
 				Message:               current,
 				AssistantMessageEvent: e,
 			})
 		case provider.EventToolCallStart, provider.EventToolCallDelta:
-			if !started {
-				out.Push(MessageStartEvent{Message: current})
-				started = true
-			}
+			ensureStarted()
 			out.Push(MessageUpdateEvent{
 				Message:               current,
 				AssistantMessageEvent: e,
 			})
 		case provider.EventToolCallEnd:
-			if !started {
-				out.Push(MessageStartEvent{Message: current})
-				started = true
-			}
+			ensureStarted()
 			out.Push(MessageUpdateEvent{
 				Message:               current,
 				AssistantMessageEvent: e,
@@ -212,9 +206,7 @@ func streamAssistantResponse(
 		case provider.EventDone:
 			current = e.Message
 		case provider.EventError:
-			if !started {
-				out.Push(MessageStartEvent{Message: current})
-			}
+			ensureStarted()
 			out.Push(MessageEndEvent{Message: current})
 			errMsg := "stream error: provider returned EventError"
 			if e.Err != nil {
@@ -232,9 +224,7 @@ func streamAssistantResponse(
 	default:
 	}
 
-	if !started {
-		out.Push(MessageStartEvent{Message: current})
-	}
+	ensureStarted()
 	out.Push(MessageEndEvent{Message: current})
 
 	return current, nil

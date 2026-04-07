@@ -9,11 +9,9 @@ import (
 type ThinkingFormat string
 
 const (
-	ThinkingFormatOpenAI           ThinkingFormat = "openai"
-	ThinkingFormatOpenRouter       ThinkingFormat = "openrouter"
-	ThinkingFormatZAI              ThinkingFormat = "zai"
-	ThinkingFormatQwen             ThinkingFormat = "qwen"
-	ThinkingFormatQwenChatTemplate ThinkingFormat = "qwen-chat-template"
+	ThinkingFormatOpenAI     ThinkingFormat = "openai"
+	ThinkingFormatOpenRouter ThinkingFormat = "openrouter"
+	ThinkingFormatZAI        ThinkingFormat = "zai"
 )
 
 type MaxTokensField string
@@ -97,11 +95,4 @@ func DetectCompat(model provider.Model) Compat {
 	}
 
 	return compat
-}
-
-type OpenAIOptions struct {
-	provider.StreamOptions
-	ToolChoice      any
-	ReasoningEffort provider.ThinkingLevel
-	Compat          Compat
 }

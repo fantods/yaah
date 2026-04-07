@@ -137,9 +137,3 @@ func TestModelWithCompat(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, true, compatMap["supportsStore"])
 }
-
-func TestKnownProviderConstants(t *testing.T) {
-	assert.Equal(t, KnownProvider("anthropic"), KnownProviderAnthropic)
-	assert.Equal(t, KnownProvider("openai"), KnownProviderOpenAI)
-	assert.Equal(t, KnownProvider("zai"), KnownProviderZAI)
-}

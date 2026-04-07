@@ -81,7 +81,7 @@ func (cp CommandPalette) View() string {
 		desc := cmd.desc
 
 		if i == cp.selected {
-			cursor = cp.theme.AcccentArrow()
+			cursor = cp.theme.AccentArrow()
 			label = lipgloss.NewStyle().
 				Foreground(cp.theme.Primary).
 				Bold(true).

@@ -41,6 +41,16 @@ type ToolCall struct {
 
 func (ToolCall) contentBlock() {}
 
+func ExtractText(blocks []ContentBlock) string {
+	var text string
+	for _, block := range blocks {
+		if tc, ok := block.(TextContent); ok {
+			text += tc.Text
+		}
+	}
+	return text
+}
+
 type contentBlockProxy struct {
 	Type string `json:"type"`
 }

@@ -3,7 +3,6 @@ package openai
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/fantods/yaah/internal/message"
@@ -178,9 +177,5 @@ func newClient(model provider.Model, opts *provider.StreamOptions) openai.Client
 }
 
 func formatOpenAIError(err error) string {
-	msg := err.Error()
-	if strings.Contains(msg, "API error") {
-		return fmt.Sprintf("openai: %s", msg)
-	}
-	return fmt.Sprintf("openai: %s", msg)
+	return fmt.Sprintf("openai: %s", err.Error())
 }

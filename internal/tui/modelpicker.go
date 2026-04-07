@@ -79,7 +79,7 @@ func (m ModelPicker) View() string {
 		info := fmt.Sprintf("(%s)", model.Provider)
 
 		if i == m.selected {
-			cursor = m.theme.AcccentArrow()
+			cursor = m.theme.AccentArrow()
 			name = lipgloss.NewStyle().
 				Foreground(m.theme.Primary).
 				Bold(true).

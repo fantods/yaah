@@ -68,7 +68,7 @@ func (t Theme) SuccessStyle() lipgloss.Style {
 		Foreground(t.Success)
 }
 
-func (t Theme) AcccentArrow() string {
+func (t Theme) AccentArrow() string {
 	return lipgloss.NewStyle().
 		Foreground(t.Accent).
 		Bold(true).

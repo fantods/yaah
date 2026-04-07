@@ -109,7 +109,7 @@ func runStream(
 
 	if err := sseStream.Err(); err != nil {
 		logging.Debug("anthropic: stream error: %v", err)
-		partial.ErrorMessage = formatAnthropicError(err)
+		partial.ErrorMessage = fmt.Sprintf("anthropic: %s", err.Error())
 		partial.StopReason = message.StopReasonError
 		stream.Push(provider.EventError{
 			Reason:  message.StopReasonError,
@@ -144,8 +144,4 @@ func newClient(opts *provider.StreamOptions) anthropic.Client {
 	}
 
 	return anthropic.NewClient(clientOpts...)
-}
-
-func formatAnthropicError(err error) string {
-	return fmt.Sprintf("anthropic: %s", err.Error())
 }

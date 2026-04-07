@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/fantods/yaah/internal/message"
+	"github.com/fantods/yaah/internal/provider"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
-	"github.com/fantods/yaah/internal/message"
-	"github.com/fantods/yaah/internal/provider"
 )
 
 // ConvertMessages transforms internal messages into OpenAI ChatCompletionMessageParamUnion.
@@ -122,17 +122,8 @@ func convertAssistantMessage(m message.AssistantMessage) openai.ChatCompletionMe
 }
 
 func convertToolResultMessage(m message.ToolResultMessage) openai.ChatCompletionMessageParamUnion {
-	// Extract text content for tool result
-	// Note: For Phase 16, we handle text only. Image support in tool results
-	// requires sending images as a follow-up user message (handled in Phase 18+).
-	var content string
-	for _, block := range m.Content {
-		if text, ok := block.(message.TextContent); ok {
-			content += text.Text
-		}
-	}
+	content := message.ExtractText(m.Content)
 
-	// OpenAI requires non-empty content for tool results
 	if content == "" {
 		content = "(no output)"
 	}

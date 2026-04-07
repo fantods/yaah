@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/fantods/yaah/internal/agent"
 	"github.com/fantods/yaah/internal/logging"
+	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
 )
 
@@ -22,15 +23,16 @@ const (
 )
 
 type AppModel struct {
-	theme      Theme
-	keys       KeyMap
-	chat       ChatModel
-	input      InputModel
-	thinking   ThinkingModel
-	tools      ToolsModel
-	status     StatusModel
-	picker     ModelPicker
-	cmdPalette CommandPalette
+	theme       Theme
+	keys        KeyMap
+	chat        ChatModel
+	input       InputModel
+	thinking    ThinkingModel
+	tools       ToolsModel
+	status      StatusModel
+	picker      ModelPicker
+	cmdPalette  CommandPalette
+	inputStatus InputStatusModel
 
 	agent    *agent.Agent
 	eventCh  <-chan agent.AgentEvent
@@ -57,8 +59,13 @@ func NewAppModel(a *agent.Agent, initialModel provider.Model, catalog []provider
 		status:     status,
 		picker:     NewModelPicker(theme, catalog),
 		cmdPalette: NewCommandPalette(theme),
-		agent:      a,
-		state:      stateIdle,
+		inputStatus: NewInputStatusModel(
+			theme,
+			initialModel.Name,
+			initialModel.ContextWindow,
+		),
+		agent: a,
+		state: stateIdle,
 	}
 }
 
@@ -75,6 +82,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.input.SetWidth(msg.Width)
 		m.status.SetWidth(msg.Width)
+		m.inputStatus.SetWidth(msg.Width)
 		m.chat.SetWidth(msg.Width)
 
 	case tea.KeyPressMsg:
@@ -174,6 +182,7 @@ func (m AppModel) handlePickerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		selected := m.picker.SelectedModel()
 		m.agent.SetModel(selected)
 		m.status.SetModel(selected.Name)
+		m.inputStatus.SetModel(selected.Name, selected.ContextWindow)
 		m.picker.Close()
 		m.state = stateIdle
 		m.input.Focus()
@@ -196,6 +205,7 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 		m.status.SetStreaming(false)
 		m.thinking.Reset()
 		m.tools.Reset()
+		m.inputStatus.SetPhaseIdle()
 		m.eventCh = nil
 		if e.Error != nil {
 			m.lastErr = e.Error.Error()
@@ -216,18 +226,27 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 		switch ev := e.AssistantMessageEvent.(type) {
 		case provider.EventTextDelta:
 			m.chat.AppendDelta(ev.Delta)
+			m.inputStatus.SetPhase(phaseStreaming)
 		case provider.EventThinkingStart:
 			m.thinking.SetVisible(true)
+			m.inputStatus.SetPhase(phaseThinking)
 		case provider.EventThinkingDelta:
 			m.thinking.AppendContent(ev.Delta)
+			m.inputStatus.SetPhase(phaseThinking)
 		case provider.EventThinkingEnd:
 			m.thinking.SetVisible(true)
+			m.inputStatus.SetPhase(phaseStreaming)
 		}
 
 	case agent.MessageEndEvent:
+		if am, ok := e.Message.(message.AssistantMessage); ok {
+			m.inputStatus.SetUsage(am.Usage)
+		}
 
 	case agent.ToolExecStartEvent:
 		m.tools.AddTool(e.ToolName)
+		m.inputStatus.SetPhase(phaseToolExec)
+		m.inputStatus.SetToolName(e.ToolName)
 
 	case agent.ToolExecEndEvent:
 		if e.IsError {
@@ -235,6 +254,7 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 		} else {
 			m.tools.CompleteTool(e.ToolName)
 		}
+		m.inputStatus.SetPhase(phaseStreaming)
 	}
 
 	if m.eventCh != nil {
@@ -252,6 +272,7 @@ func (m AppModel) View() tea.View {
 	inputView := m.input.View()
 	toolsView := m.tools.View()
 	thinkingView := m.thinking.View()
+	inputStatusView := m.inputStatus.View()
 	statusView := m.status.View()
 
 	var errLine string
@@ -264,6 +285,7 @@ func (m AppModel) View() tea.View {
 		chatView,
 		toolsView,
 		thinkingView,
+		inputStatusView,
 		inputView,
 		errLine,
 		statusView,
@@ -295,6 +317,7 @@ func (m AppModel) computeLayout() AppModel {
 
 	inputHeight := lipgloss.Height(m.input.View())
 	statusHeight := lipgloss.Height(m.status.View())
+	inputStatusHeight := lipgloss.Height(m.inputStatus.View())
 
 	toolsHeight := 0
 	if tv := m.tools.View(); tv != "" {
@@ -311,7 +334,7 @@ func (m AppModel) computeLayout() AppModel {
 		errHeight = 1
 	}
 
-	chatHeight := m.height - inputHeight - statusHeight - toolsHeight - thinkingHeight - errHeight
+	chatHeight := m.height - inputHeight - statusHeight - toolsHeight - thinkingHeight - errHeight - inputStatusHeight
 	m.chat.SetHeight(chatHeight)
 	return m
 }

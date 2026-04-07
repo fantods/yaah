@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/fantods/yaah/internal/message"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -200,4 +201,110 @@ func TestChatModelAppendDelta(t *testing.T) {
 
 	assert.Equal(t, 1, len(m.messages))
 	assert.Equal(t, "hello", m.messages[0].content)
+}
+
+func TestFmtTokens(t *testing.T) {
+	assert.Equal(t, "0", fmtTokens(0))
+	assert.Equal(t, "832", fmtTokens(832))
+	assert.Equal(t, "1.0k", fmtTokens(1000))
+	assert.Equal(t, "8.2k", fmtTokens(8200))
+	assert.Equal(t, "14.4k", fmtTokens(14400))
+	assert.Equal(t, "1.0m", fmtTokens(1_000_000))
+	assert.Equal(t, "2.5m", fmtTokens(2_500_000))
+}
+
+func TestInputStatusModelPhaseIdle(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+
+	view := m.View()
+	assert.Contains(t, view, "idle")
+}
+
+func TestInputStatusModelPhaseStreaming(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetPhase(phaseStreaming)
+
+	view := m.View()
+	assert.Contains(t, view, "streaming")
+}
+
+func TestInputStatusModelPhaseThinking(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetPhase(phaseThinking)
+
+	view := m.View()
+	assert.Contains(t, view, "thinking...")
+}
+
+func TestInputStatusModelPhaseToolExec(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetPhase(phaseToolExec)
+	m.SetToolName("search")
+
+	view := m.View()
+	assert.Contains(t, view, "tool: search")
+}
+
+func TestInputStatusModelSetPhaseIdle(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetPhase(phaseToolExec)
+	m.SetToolName("bash")
+	m.SetPhaseIdle()
+
+	view := m.View()
+	assert.Contains(t, view, "idle")
+	assert.NotContains(t, view, "bash")
+}
+
+func TestInputStatusModelUsage(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetUsage(message.Usage{Input: 8200, Output: 4100, CacheRead: 2100, CacheWrite: 0})
+
+	view := m.View()
+	assert.Contains(t, view, "8.2k")
+	assert.Contains(t, view, "4.1k")
+	assert.Contains(t, view, "2.1k")
+	assert.Contains(t, view, "128.0k")
+}
+
+func TestInputStatusModelViewWidth(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(40)
+
+	view := m.View()
+	assert.Contains(t, view, "idle")
+}
+
+func TestInputStatusModelShowsModelName(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+
+	view := m.View()
+	assert.Contains(t, view, "gpt-4")
+}
+
+func TestInputStatusModelSetModel(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetModel("Claude Sonnet 4", 200000)
+
+	view := m.View()
+	assert.Contains(t, view, "Claude Sonnet 4")
+	assert.Contains(t, view, "200.0k")
+	assert.NotContains(t, view, "128.0k")
 }

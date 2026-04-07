@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/fantods/yaah/internal/agent"
 	"github.com/fantods/yaah/internal/logging"
 	"github.com/fantods/yaah/internal/provider"
@@ -28,7 +29,6 @@ type AppModel struct {
 	thinking   ThinkingModel
 	tools      ToolsModel
 	status     StatusModel
-	streaming  StreamingModel
 	picker     ModelPicker
 	cmdPalette CommandPalette
 
@@ -55,7 +55,6 @@ func NewAppModel(a *agent.Agent, initialModel provider.Model, catalog []provider
 		thinking:   NewThinkingModel(theme),
 		tools:      NewToolsModel(theme),
 		status:     status,
-		streaming:  NewStreamingModel(theme),
 		picker:     NewModelPicker(theme, catalog),
 		cmdPalette: NewCommandPalette(theme),
 		agent:      a,
@@ -74,13 +73,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		m.input.SetWidth(msg.Width)
+		m.status.SetWidth(msg.Width)
+		m.chat.SetWidth(msg.Width)
 
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
+	case tea.KeyPressMsg:
+		if key.Matches(msg, m.keys.Quit) {
 			m.quitting = true
 			return m, tea.Quit
 		}
+
+		m.lastErr = ""
 
 		if m.state == stateModelPicker {
 			return m.handlePickerKeys(msg)
@@ -89,39 +92,38 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handlePaletteKeys(msg)
 		}
 
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, m.keys.Enter):
 			if m.input.Focused() && m.input.Value() != "" {
 				text := m.input.Value()
 				m.input.Reset()
 				m.chat.AddUserMessage(text)
 				m.state = stateStreaming
 				m.status.SetStreaming(true)
-				m.lastErr = ""
 
 				ch := m.agent.Prompt(context.Background(), text)
 				m.eventCh = ch
 				cmds = append(cmds, waitForAgentEvents(ch))
 				return m, tea.Batch(cmds...)
 			}
-		case "ctrl+x":
+		case key.Matches(msg, m.keys.Abort):
 			if m.state == stateStreaming {
 				m.agent.Abort()
 				m.state = stateIdle
 				m.status.SetStreaming(false)
 			}
-		case "ctrl+p":
+		case key.Matches(msg, m.keys.CommandPalette):
 			m.cmdPalette.Open(m.state)
 			m.state = stateCommandPalette
 			m.input.Blur()
 			return m, nil
-		case "ctrl+l":
+		case key.Matches(msg, m.keys.Clear):
 			m.chat.Clear()
 			return m, nil
-		case "ctrl+t":
+		case key.Matches(msg, m.keys.ToggleThinking):
 			m.thinking.Toggle()
 			return m, nil
-		case "ctrl+m":
+		case key.Matches(msg, m.keys.SwitchModel):
 			if m.state == stateIdle {
 				m.picker.Open(m.agent.ModelID())
 				m.state = stateModelPicker
@@ -131,7 +133,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case agentEventMsg:
-		cmd := m.handleAgentEvent(msg.Event)
+		var cmd tea.Cmd
+		m, cmd = m.handleAgentEvent(msg.Event)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
 		}
@@ -156,16 +159,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	m = m.computeLayout()
+
 	return m, tea.Batch(cmds...)
 }
 
-func (m AppModel) handlePickerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
+func (m AppModel) handlePickerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Up):
 		m.picker.CursorUp()
-	case "down", "j":
+	case key.Matches(msg, m.keys.Down):
 		m.picker.CursorDown()
-	case "enter":
+	case key.Matches(msg, m.keys.Enter):
 		selected := m.picker.SelectedModel()
 		m.agent.SetModel(selected)
 		m.status.SetModel(selected.Name)
@@ -174,7 +179,7 @@ func (m AppModel) handlePickerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.input.Focus()
 		logging.Debug("model switched to %s (%s)", selected.Name, selected.ID)
 		return m, nil
-	case "esc", "ctrl+m":
+	case key.Matches(msg, m.keys.Escape), key.Matches(msg, m.keys.SwitchModel):
 		m.picker.Close()
 		m.state = stateIdle
 		m.input.Focus()
@@ -182,7 +187,7 @@ func (m AppModel) handlePickerKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *AppModel) handleAgentEvent(evt agent.AgentEvent) tea.Cmd {
+func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 	switch e := evt.(type) {
 	case agent.AgentStartEvent:
 
@@ -191,12 +196,11 @@ func (m *AppModel) handleAgentEvent(evt agent.AgentEvent) tea.Cmd {
 		m.status.SetStreaming(false)
 		m.thinking.Reset()
 		m.tools.Reset()
-		m.streaming.Reset()
 		m.eventCh = nil
 		if e.Error != nil {
 			m.lastErr = e.Error.Error()
 		}
-		return nil
+		return m, nil
 
 	case agent.TurnStartEvent:
 		m.status.SetTurn(m.agent.State().GetTurn())
@@ -211,8 +215,13 @@ func (m *AppModel) handleAgentEvent(evt agent.AgentEvent) tea.Cmd {
 	case agent.MessageUpdateEvent:
 		switch ev := e.AssistantMessageEvent.(type) {
 		case provider.EventTextDelta:
-			m.streaming.AppendDelta(ev.Delta)
 			m.chat.AppendDelta(ev.Delta)
+		case provider.EventThinkingStart:
+			m.thinking.SetVisible(true)
+		case provider.EventThinkingDelta:
+			m.thinking.AppendContent(ev.Delta)
+		case provider.EventThinkingEnd:
+			m.thinking.SetVisible(true)
 		}
 
 	case agent.MessageEndEvent:
@@ -229,14 +238,14 @@ func (m *AppModel) handleAgentEvent(evt agent.AgentEvent) tea.Cmd {
 	}
 
 	if m.eventCh != nil {
-		return waitForAgentEvents(m.eventCh)
+		return m, waitForAgentEvents(m.eventCh)
 	}
-	return nil
+	return m, nil
 }
 
-func (m AppModel) View() string {
+func (m AppModel) View() tea.View {
 	if m.quitting {
-		return "Goodbye!\n"
+		return tea.NewView("Goodbye!\n")
 	}
 
 	chatView := m.chat.View()
@@ -262,49 +271,82 @@ func (m AppModel) View() string {
 
 	if m.state == stateModelPicker {
 		pickerView := m.picker.View()
-		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, pickerView)
+		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, pickerView,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Background(m.theme.Secondary)),
+		)
 	} else if m.state == stateCommandPalette {
 		paletteView := m.cmdPalette.View()
-		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, paletteView)
+		body = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, paletteView,
+			lipgloss.WithWhitespaceChars(" "),
+			lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Background(m.theme.Secondary)),
+		)
 	}
 
-	return fmt.Sprintf("%s\n", body)
+	v := tea.NewView(fmt.Sprintf("%s\n", body))
+	v.AltScreen = true
+	return v
 }
 
-func (m AppModel) handlePaletteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
+func (m AppModel) computeLayout() AppModel {
+	if m.width == 0 || m.height == 0 {
+		return m
+	}
+
+	inputHeight := lipgloss.Height(m.input.View())
+	statusHeight := lipgloss.Height(m.status.View())
+
+	toolsHeight := 0
+	if tv := m.tools.View(); tv != "" {
+		toolsHeight = lipgloss.Height(tv)
+	}
+
+	thinkingHeight := 0
+	if tv := m.thinking.View(); tv != "" {
+		thinkingHeight = lipgloss.Height(tv)
+	}
+
+	errHeight := 0
+	if m.lastErr != "" {
+		errHeight = 1
+	}
+
+	chatHeight := m.height - inputHeight - statusHeight - toolsHeight - thinkingHeight - errHeight
+	m.chat.SetHeight(chatHeight)
+	return m
+}
+
+func (m AppModel) handlePaletteKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Up):
 		m.cmdPalette.CursorUp()
-	case "down", "j":
+	case key.Matches(msg, m.keys.Down):
 		m.cmdPalette.CursorDown()
-	case "enter":
+	case key.Matches(msg, m.keys.Enter):
 		cmd := m.cmdPalette.SelectedCommand()
 		m.cmdPalette.Close()
 		m.state = stateIdle
 		m.input.Focus()
-		return m, m.executePaletteCommand(cmd)
-	case "esc", "ctrl+p":
+
+		switch cmd {
+		case "switch-model":
+			m.picker.Open(m.agent.ModelID())
+			m.state = stateModelPicker
+			m.input.Blur()
+		case "clear":
+			m.chat.Clear()
+		case "toggle-thinking":
+			m.thinking.Toggle()
+		case "abort":
+			m.agent.Abort()
+			m.state = stateIdle
+			m.status.SetStreaming(false)
+		}
+		return m, nil
+	case key.Matches(msg, m.keys.Escape), key.Matches(msg, m.keys.CommandPalette):
 		m.cmdPalette.Close()
 		m.state = stateIdle
 		m.input.Focus()
 	}
 	return m, nil
-}
-
-func (m AppModel) executePaletteCommand(cmd string) tea.Cmd {
-	switch cmd {
-	case "switch-model":
-		m.picker.Open(m.agent.ModelID())
-		m.state = stateModelPicker
-		m.input.Blur()
-	case "clear":
-		m.chat.Clear()
-	case "toggle-thinking":
-		m.thinking.Toggle()
-	case "abort":
-		m.agent.Abort()
-		m.state = stateIdle
-		m.status.SetStreaming(false)
-	}
-	return nil
 }

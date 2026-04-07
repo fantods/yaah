@@ -3,7 +3,7 @@ package tui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 type StatusModel struct {
@@ -11,6 +11,7 @@ type StatusModel struct {
 	model     string
 	turn      int
 	streaming bool
+	width     int
 }
 
 func NewStatusModel(theme Theme) StatusModel {
@@ -31,9 +32,17 @@ func (m *StatusModel) SetStreaming(v bool) {
 	m.streaming = v
 }
 
+func (m *StatusModel) SetWidth(w int) {
+	m.width = w
+}
+
 func (m StatusModel) View() string {
+	w := m.width
+	if w < 20 {
+		w = 20
+	}
 	status := m.theme.StatusBarStyle().
-		Width(80).
+		Width(w).
 		Padding(0, 1).
 		Render(fmt.Sprintf(" %s | Turn: %d | %s",
 			m.model,

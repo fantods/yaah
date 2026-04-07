@@ -1,12 +1,13 @@
 package tui
 
-import "github.com/charmbracelet/bubbles/key"
+import "charm.land/bubbles/v2/key"
 
 type KeyMap struct {
 	Up             key.Binding
 	Down           key.Binding
 	Enter          key.Binding
 	Quit           key.Binding
+	Escape         key.Binding
 	Newline        key.Binding
 	Abort          key.Binding
 	CommandPalette key.Binding
@@ -18,12 +19,12 @@ type KeyMap struct {
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		Up: key.NewBinding(
-			key.WithKeys("up"),
-			key.WithHelp("↑", "scroll up"),
+			key.WithKeys("up", "k"),
+			key.WithHelp("↑/k", "up"),
 		),
 		Down: key.NewBinding(
-			key.WithKeys("down"),
-			key.WithHelp("↓", "scroll down"),
+			key.WithKeys("down", "j"),
+			key.WithHelp("↓/j", "down"),
 		),
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),
@@ -32,6 +33,10 @@ func DefaultKeyMap() KeyMap {
 		Quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
 			key.WithHelp("ctrl+c", "quit"),
+		),
+		Escape: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "cancel"),
 		),
 		Newline: key.NewBinding(
 			key.WithKeys("shift+enter"),

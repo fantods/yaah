@@ -3,19 +3,21 @@ package tui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type ChatModel struct {
-	viewport   viewport.Model
-	theme      Theme
-	messages   []chatMessage
-	ready      bool
-	width      int
-	height     int
-	autoScroll bool
+	viewport      viewport.Model
+	theme         Theme
+	messages      []chatMessage
+	ready         bool
+	width         int
+	height        int
+	autoScroll    bool
+	renderedCache string
+	renderedCount int
 }
 
 type chatMessage struct {
@@ -38,25 +40,42 @@ func (m ChatModel) Update(msg tea.Msg) (ChatModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height - 8
-		if m.height < 1 {
-			m.height = 1
-		}
 		if !m.ready {
-			m.viewport = viewport.New(msg.Width, m.height)
+			m.viewport = viewport.New(
+				viewport.WithWidth(msg.Width),
+				viewport.WithHeight(3),
+			)
 			m.viewport.Style = lipgloss.NewStyle().
 				BorderStyle(lipgloss.RoundedBorder()).
 				BorderForeground(m.theme.Border)
 			m.ready = true
 		} else {
-			m.viewport.Width = msg.Width
-			m.viewport.Height = m.height
+			m.viewport.SetWidth(msg.Width)
 		}
+		m.invalidateCache()
+		m.renderMessages()
 	}
 
 	var cmd tea.Cmd
 	m.viewport, cmd = m.viewport.Update(msg)
 	return m, cmd
+}
+
+func (m *ChatModel) SetHeight(height int) {
+	m.height = height
+	if m.ready {
+		m.viewport.SetHeight(m.clampedHeight())
+		m.renderMessages()
+	}
+}
+
+func (m *ChatModel) SetWidth(w int) {
+	m.width = w
+	if m.ready {
+		m.viewport.SetWidth(w)
+		m.invalidateCache()
+		m.renderMessages()
+	}
 }
 
 func (m ChatModel) View() string {
@@ -68,22 +87,26 @@ func (m ChatModel) View() string {
 
 func (m *ChatModel) AddUserMessage(text string) {
 	m.messages = append(m.messages, chatMessage{role: "user", content: text})
+	m.invalidateCache()
 	m.renderMessages()
 }
 
 func (m *ChatModel) AddAssistantMessage(text string) {
 	m.messages = append(m.messages, chatMessage{role: "assistant", content: text})
+	m.invalidateCache()
 	m.renderMessages()
 }
 
 func (m *ChatModel) StartAssistantMessage() {
 	m.messages = append(m.messages, chatMessage{role: "assistant", content: ""})
+	m.invalidateCache()
 	m.renderMessages()
 }
 
 func (m *ChatModel) AppendDelta(delta string) {
 	if len(m.messages) == 0 || m.messages[len(m.messages)-1].role != "assistant" {
 		m.messages = append(m.messages, chatMessage{role: "assistant", content: ""})
+		m.invalidateCache()
 	}
 	last := &m.messages[len(m.messages)-1]
 	last.content += delta
@@ -92,7 +115,25 @@ func (m *ChatModel) AppendDelta(delta string) {
 
 func (m *ChatModel) Clear() {
 	m.messages = []chatMessage{}
+	m.invalidateCache()
 	m.renderMessages()
+}
+
+func (m *ChatModel) invalidateCache() {
+	m.renderedCache = ""
+	m.renderedCount = 0
+}
+
+func (m ChatModel) clampedHeight() int {
+	frameSize := 0
+	if m.ready {
+		frameSize = m.viewport.Style.GetVerticalFrameSize()
+	}
+	minHeight := frameSize + 1
+	if m.height < minHeight {
+		return minHeight
+	}
+	return m.height
 }
 
 func (m *ChatModel) renderMessages() {
@@ -106,39 +147,51 @@ func (m *ChatModel) renderMessages() {
 	}
 
 	var b strings.Builder
-	for _, msg := range m.messages {
-		var prefix string
-		switch msg.role {
-		case "user":
-			prefix = m.theme.UserStyle().Render("You: ")
-		case "assistant":
-			prefix = m.theme.MutedStyle().Render("Assistant: ")
-		}
 
-		prefixWidth := lipgloss.Width(prefix)
-		wrapWidth := contentWidth - prefixWidth
-		if wrapWidth < 10 {
-			wrapWidth = 10
+	if m.renderedCount > 0 && m.renderedCount <= len(m.messages) {
+		b.WriteString(m.renderedCache)
+		for _, msg := range m.messages[m.renderedCount:] {
+			m.renderSingleMessage(&b, msg, contentWidth)
 		}
-
-		wrapped := wrapLines(msg.content, wrapWidth)
-		lines := strings.Split(wrapped, "\n")
-		for i, line := range lines {
-			if i == 0 {
-				b.WriteString(prefix)
-			} else {
-				b.WriteString(strings.Repeat(" ", prefixWidth))
-			}
-			b.WriteString(line)
-			b.WriteString("\n")
+	} else {
+		for _, msg := range m.messages {
+			m.renderSingleMessage(&b, msg, contentWidth)
 		}
-		b.WriteString("\n")
 	}
 
 	m.viewport.SetContent(b.String())
 	if m.autoScroll {
 		m.viewport.GotoBottom()
 	}
+}
+
+func (m *ChatModel) renderSingleMessage(b *strings.Builder, msg chatMessage, contentWidth int) {
+	var prefix string
+	switch msg.role {
+	case "user":
+		prefix = m.theme.UserStyle().Render("You: ")
+	case "assistant":
+		prefix = m.theme.MutedStyle().Render("Assistant: ")
+	}
+
+	prefixWidth := lipgloss.Width(prefix)
+	wrapWidth := contentWidth - prefixWidth
+	if wrapWidth < 10 {
+		wrapWidth = 10
+	}
+
+	wrapped := wrapLines(msg.content, wrapWidth)
+	lines := strings.Split(wrapped, "\n")
+	for i, line := range lines {
+		if i == 0 {
+			b.WriteString(prefix)
+		} else {
+			b.WriteString(strings.Repeat(" ", prefixWidth))
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
 }
 
 func wrapLines(text string, width int) string {

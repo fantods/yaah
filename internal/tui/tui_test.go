@@ -1,9 +1,9 @@
 package tui
 
 import (
+	"image/color"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,14 +14,14 @@ func TestPhase0Smoke(t *testing.T) {
 func TestDefaultThemeColors(t *testing.T) {
 	theme := DefaultTheme()
 
-	assert.Equal(t, lipgloss.Color("#7D56F4"), theme.Primary)
-	assert.Equal(t, lipgloss.Color("#313244"), theme.Secondary)
-	assert.Equal(t, lipgloss.Color("#FF6E8A"), theme.Accent)
-	assert.Equal(t, lipgloss.Color("#CDD6F4"), theme.Foreground)
-	assert.Equal(t, lipgloss.Color("#6C7086"), theme.Muted)
-	assert.Equal(t, lipgloss.Color("#45475A"), theme.Border)
-	assert.Equal(t, lipgloss.Color("#F38BA8"), theme.Error)
-	assert.Equal(t, lipgloss.Color("#A6E3A1"), theme.Success)
+	assert.Equal(t, color.RGBA{R: 0x7D, G: 0x56, B: 0xF4, A: 0xFF}, theme.Primary)
+	assert.Equal(t, color.RGBA{R: 0x31, G: 0x32, B: 0x44, A: 0xFF}, theme.Secondary)
+	assert.Equal(t, color.RGBA{R: 0xFF, G: 0x6E, B: 0x8A, A: 0xFF}, theme.Accent)
+	assert.Equal(t, color.RGBA{R: 0xCD, G: 0xD6, B: 0xF4, A: 0xFF}, theme.Foreground)
+	assert.Equal(t, color.RGBA{R: 0x6C, G: 0x70, B: 0x86, A: 0xFF}, theme.Muted)
+	assert.Equal(t, color.RGBA{R: 0x45, G: 0x47, B: 0x5A, A: 0xFF}, theme.Border)
+	assert.Equal(t, color.RGBA{R: 0xF3, G: 0x8B, B: 0xA8, A: 0xFF}, theme.Error)
+	assert.Equal(t, color.RGBA{R: 0xA6, G: 0xE3, B: 0xA1, A: 0xFF}, theme.Success)
 }
 
 func TestThemeUserStyle(t *testing.T) {
@@ -84,46 +84,9 @@ func TestDefaultKeyMap(t *testing.T) {
 func TestAgentEventMsgWrapping(t *testing.T) {
 	theme := DefaultTheme()
 	_ = NewChatModel(theme)
-	_ = NewStreamingModel(theme)
 	_ = NewThinkingModel(theme)
 	_ = NewToolsModel(theme)
 	_ = NewStatusModel(theme)
-}
-
-func TestStreamingModelAppendDelta(t *testing.T) {
-	theme := DefaultTheme()
-	m := NewStreamingModel(theme)
-
-	m.AppendDelta("hello ")
-	m.AppendDelta("world")
-
-	assert.Equal(t, "hello world", m.Content())
-}
-
-func TestStreamingModelThinking(t *testing.T) {
-	theme := DefaultTheme()
-	m := NewStreamingModel(theme)
-
-	m.SetThinking(true)
-	m.AppendThinking("hmm")
-
-	assert.True(t, m.IsThinking())
-	assert.Equal(t, "hmm", m.Thinking())
-	assert.Contains(t, m.View(), "Thinking:")
-}
-
-func TestStreamingModelReset(t *testing.T) {
-	theme := DefaultTheme()
-	m := NewStreamingModel(theme)
-
-	m.AppendDelta("data")
-	m.AppendThinking("think")
-	m.SetThinking(true)
-	m.Reset()
-
-	assert.Equal(t, "", m.Content())
-	assert.Equal(t, "", m.Thinking())
-	assert.False(t, m.IsThinking())
 }
 
 func TestThinkingModelToggle(t *testing.T) {

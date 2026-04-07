@@ -10,7 +10,7 @@ import (
 	_ "github.com/fantods/yaah/internal/provider/openai"
 	_ "github.com/fantods/yaah/internal/provider/zai"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/fantods/yaah/internal/agent"
 	"github.com/fantods/yaah/internal/logging"
 	"github.com/fantods/yaah/internal/provider"
@@ -71,7 +71,6 @@ func main() {
 
 	p := tea.NewProgram(
 		tui.NewAppModel(a, model, provider.Catalog()),
-		tea.WithAltScreen(),
 	)
 	if _, err := p.Run(); err != nil {
 		logging.Debug("program error: %v", err)

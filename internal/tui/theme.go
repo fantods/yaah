@@ -1,16 +1,20 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"image/color"
+
+	"charm.land/lipgloss/v2"
+)
 
 type Theme struct {
-	Primary    lipgloss.Color
-	Secondary  lipgloss.Color
-	Accent     lipgloss.Color
-	Foreground lipgloss.Color
-	Muted      lipgloss.Color
-	Border     lipgloss.Color
-	Error      lipgloss.Color
-	Success    lipgloss.Color
+	Primary    color.Color
+	Secondary  color.Color
+	Accent     color.Color
+	Foreground color.Color
+	Muted      color.Color
+	Border     color.Color
+	Error      color.Color
+	Success    color.Color
 }
 
 func DefaultTheme() Theme {

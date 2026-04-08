@@ -26,6 +26,10 @@ func (m *ThinkingModel) Toggle() {
 	m.expanded = !m.expanded
 }
 
+func (m *ThinkingModel) SetExpanded(v bool) {
+	m.expanded = v
+}
+
 func (m *ThinkingModel) SetVisible(v bool) {
 	m.visible = v
 }
@@ -33,7 +37,6 @@ func (m *ThinkingModel) SetVisible(v bool) {
 func (m *ThinkingModel) Reset() {
 	m.content = ""
 	m.visible = false
-	m.expanded = false
 }
 
 func (m ThinkingModel) View() string {

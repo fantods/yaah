@@ -89,6 +89,18 @@ func (a *Agent) ModelID() string {
 	return a.opts.Model.ID
 }
 
+func (a *Agent) SetThinkingEnabled(v bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.opts.StreamOpts.ThinkingEnabled = v
+}
+
+func (a *Agent) ThinkingEnabled() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.opts.StreamOpts.ThinkingEnabled
+}
+
 func (a *Agent) startLoop(parent context.Context) <-chan AgentEvent {
 	a.mu.Lock()
 	if a.cancel != nil {

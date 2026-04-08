@@ -43,6 +43,7 @@ type StreamOptions struct {
 	Headers         map[string]string `json:"headers,omitempty"`
 	MaxRetryDelayMs *int              `json:"maxRetryDelayMs,omitempty"`
 	Metadata        map[string]any    `json:"metadata,omitempty"`
+	ThinkingEnabled bool              `json:"thinkingEnabled,omitempty"`
 }
 
 type SimpleStreamOptions struct {

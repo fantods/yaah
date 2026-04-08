@@ -131,8 +131,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chat.Clear()
 			return m, nil
 		case key.Matches(msg, m.keys.ToggleThinking):
-			m.thinking.Toggle()
-			m.inputStatus.SetThinkingExpanded(m.thinking.expanded)
+			next := !m.agent.ThinkingEnabled()
+			m.agent.SetThinkingEnabled(next)
+			m.thinking.SetExpanded(next)
+			m.inputStatus.SetThinkingExpanded(next)
 			return m, nil
 		case key.Matches(msg, m.keys.SwitchModel):
 			if m.state == stateIdle {
@@ -203,6 +205,7 @@ func (m AppModel) handlePickerKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 	switch e := evt.(type) {
 	case agent.AgentStartEvent:
+		m.inputStatus.SetPhase(phaseGenerating)
 
 	case agent.AgentEndEvent:
 		m.state = stateIdle
@@ -220,6 +223,7 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 
 	case agent.TurnStartEvent:
 		m.status.SetTurn(m.agent.State().GetTurn())
+		m.inputStatus.SetPhase(phaseGenerating)
 
 	case agent.TurnEndEvent:
 		m.tools.Reset()

@@ -12,6 +12,7 @@ type agentPhase int
 
 const (
 	phaseIdle agentPhase = iota
+	phaseGenerating
 	phaseStreaming
 	phaseThinking
 	phaseToolExec
@@ -138,6 +139,9 @@ func (m InputStatusModel) renderPhase() string {
 		if m.thinkingExpanded {
 			label = "idle  thinking:on"
 		}
+	case phaseGenerating:
+		dotColor = m.theme.Primary
+		label = "generating..."
 	case phaseStreaming:
 		dotColor = m.theme.Accent
 		label = "streaming"

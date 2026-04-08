@@ -88,6 +88,15 @@ func runStream(
 		}
 	}
 
+	if opts != nil && opts.ThinkingEnabled {
+		budget := maxTokens - 1024
+		if budget < 1024 {
+			budget = 1024
+		}
+		logging.Debug("anthropic: thinking enabled, budget=%d", budget)
+		params.Thinking = anthropic.ThinkingConfigParamOfEnabled(budget)
+	}
+
 	sseStream := client.Messages.NewStreaming(context.Background(), params)
 
 	eventsCh := make(chan provider.AssistantMessageEvent, 64)

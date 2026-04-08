@@ -113,6 +113,24 @@ func (m *ChatModel) AppendDelta(delta string) {
 	m.renderMessages()
 }
 
+func (m *ChatModel) AddErrorMessage(text string) {
+	m.messages = append(m.messages, chatMessage{role: "error", content: text})
+	m.invalidateCache()
+	m.renderMessages()
+}
+
+func (m *ChatModel) RemoveTrailingEmptyAssistant() {
+	if len(m.messages) == 0 {
+		return
+	}
+	last := &m.messages[len(m.messages)-1]
+	if last.role == "assistant" && strings.TrimSpace(last.content) == "" {
+		m.messages = m.messages[:len(m.messages)-1]
+		m.invalidateCache()
+		m.renderMessages()
+	}
+}
+
 func (m *ChatModel) Clear() {
 	m.messages = []chatMessage{}
 	m.invalidateCache()
@@ -172,6 +190,8 @@ func (m *ChatModel) renderSingleMessage(b *strings.Builder, msg chatMessage, con
 		prefix = m.theme.UserStyle().Render("You: ")
 	case "assistant":
 		prefix = m.theme.MutedStyle().Render("Assistant: ")
+	case "error":
+		prefix = m.theme.ErrorStyle().Bold(true).Render("Error: ")
 	}
 
 	prefixWidth := lipgloss.Width(prefix)

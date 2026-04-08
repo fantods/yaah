@@ -18,13 +18,16 @@ const (
 )
 
 type InputStatusModel struct {
-	theme         Theme
-	phase         agentPhase
-	toolName      string
-	model         string
-	contextWindow int
-	usage         message.Usage
-	width         int
+	theme            Theme
+	phase            agentPhase
+	toolName         string
+	model            string
+	contextWindow    int
+	usage            message.Usage
+	width            int
+	thinkingPrefix   string
+	thinkingShown    int
+	thinkingExpanded bool
 }
 
 func NewInputStatusModel(theme Theme, modelName string, contextWindow int) InputStatusModel {
@@ -46,6 +49,8 @@ func (m *InputStatusModel) SetToolName(name string) {
 func (m *InputStatusModel) SetPhaseIdle() {
 	m.phase = phaseIdle
 	m.toolName = ""
+	m.thinkingPrefix = ""
+	m.thinkingShown = 0
 }
 
 func (m *InputStatusModel) SetUsage(u message.Usage) {
@@ -59,6 +64,23 @@ func (m *InputStatusModel) SetWidth(w int) {
 func (m *InputStatusModel) SetModel(name string, contextWindow int) {
 	m.model = name
 	m.contextWindow = contextWindow
+}
+
+func (m *InputStatusModel) SetThinkingExpanded(v bool) {
+	m.thinkingExpanded = v
+}
+
+func (m *InputStatusModel) AppendThinking(delta string) {
+	if m.thinkingShown < 80 {
+		remaining := 80 - m.thinkingShown
+		if len(delta) > remaining {
+			m.thinkingPrefix += delta[:remaining]
+			m.thinkingShown = 80
+		} else {
+			m.thinkingPrefix += delta
+			m.thinkingShown += len(delta)
+		}
+	}
 }
 
 func (m InputStatusModel) View() string {
@@ -82,6 +104,14 @@ func (m InputStatusModel) View() string {
 	right := fmt.Sprintf("%s/%s", fmtTokens(total), fmtTokens(int64(m.contextWindow)))
 
 	leftSide := fmt.Sprintf(" %s  %s  %s", left, m.model, tokens)
+
+	if m.phase == phaseThinking && m.thinkingPrefix != "" {
+		leftSide += "  " + lipgloss.NewStyle().
+			Foreground(m.theme.Muted).
+			MaxWidth(innerW-lipgloss.Width(leftSide)-20).
+			Render(m.thinkingPrefix)
+	}
+
 	rightSide := lipgloss.NewStyle().Foreground(m.theme.Muted).Render(right)
 
 	gap := innerW - lipgloss.Width(leftSide) - lipgloss.Width(rightSide)
@@ -105,12 +135,19 @@ func (m InputStatusModel) renderPhase() string {
 	case phaseIdle:
 		dotColor = m.theme.Muted
 		label = "idle"
+		if m.thinkingExpanded {
+			label = "idle  thinking:on"
+		}
 	case phaseStreaming:
 		dotColor = m.theme.Accent
 		label = "streaming"
 	case phaseThinking:
 		dotColor = m.theme.Primary
-		label = "thinking..."
+		tag := "off"
+		if m.thinkingExpanded {
+			tag = "on"
+		}
+		label = "thinking... [" + tag + "]"
 	case phaseToolExec:
 		dotColor = m.theme.Success
 		label = "tool: " + m.toolName

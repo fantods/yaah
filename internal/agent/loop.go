@@ -206,8 +206,9 @@ func streamAssistantResponse(
 		case provider.EventDone:
 			current = e.Message
 		case provider.EventError:
-			ensureStarted()
-			out.Push(MessageEndEvent{Message: current})
+			if started {
+				out.Push(MessageEndEvent{Message: current})
+			}
 			errMsg := "stream error: provider returned EventError"
 			if e.Err != nil {
 				errMsg = e.Err.Error()

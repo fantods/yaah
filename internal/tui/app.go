@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -130,6 +132,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case key.Matches(msg, m.keys.ToggleThinking):
 			m.thinking.Toggle()
+			m.inputStatus.SetThinkingExpanded(m.thinking.expanded)
 			return m, nil
 		case key.Matches(msg, m.keys.SwitchModel):
 			if m.state == stateIdle {
@@ -137,7 +140,6 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = stateModelPicker
 				m.input.Blur()
 			}
-			return m, nil
 		}
 
 	case agentEventMsg:
@@ -151,6 +153,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == stateStreaming {
 			m.state = stateIdle
 			m.status.SetStreaming(false)
+			m.chat.RemoveTrailingEmptyAssistant()
+			m.chat.AddErrorMessage("Stream ended unexpectedly")
 			m.lastErr = "stream ended unexpectedly"
 		}
 		m.eventCh = nil
@@ -208,6 +212,8 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 		m.inputStatus.SetPhaseIdle()
 		m.eventCh = nil
 		if e.Error != nil {
+			m.chat.RemoveTrailingEmptyAssistant()
+			m.chat.AddErrorMessage(formatAPIError(e.Error))
 			m.lastErr = e.Error.Error()
 		}
 		return m, nil
@@ -232,6 +238,7 @@ func (m AppModel) handleAgentEvent(evt agent.AgentEvent) (AppModel, tea.Cmd) {
 			m.inputStatus.SetPhase(phaseThinking)
 		case provider.EventThinkingDelta:
 			m.thinking.AppendContent(ev.Delta)
+			m.inputStatus.AppendThinking(ev.Delta)
 			m.inputStatus.SetPhase(phaseThinking)
 		case provider.EventThinkingEnd:
 			m.thinking.SetVisible(true)
@@ -271,7 +278,6 @@ func (m AppModel) View() tea.View {
 	chatView := m.chat.View()
 	inputView := m.input.View()
 	toolsView := m.tools.View()
-	thinkingView := m.thinking.View()
 	inputStatusView := m.inputStatus.View()
 	statusView := m.status.View()
 
@@ -284,7 +290,6 @@ func (m AppModel) View() tea.View {
 		lipgloss.Left,
 		chatView,
 		toolsView,
-		thinkingView,
 		inputStatusView,
 		inputView,
 		errLine,
@@ -324,17 +329,12 @@ func (m AppModel) computeLayout() AppModel {
 		toolsHeight = lipgloss.Height(tv)
 	}
 
-	thinkingHeight := 0
-	if tv := m.thinking.View(); tv != "" {
-		thinkingHeight = lipgloss.Height(tv)
-	}
-
 	errHeight := 0
 	if m.lastErr != "" {
 		errHeight = 1
 	}
 
-	chatHeight := m.height - inputHeight - statusHeight - toolsHeight - thinkingHeight - errHeight - inputStatusHeight
+	chatHeight := m.height - inputHeight - statusHeight - toolsHeight - errHeight - inputStatusHeight
 	m.chat.SetHeight(chatHeight)
 	return m
 }
@@ -372,4 +372,52 @@ func (m AppModel) handlePaletteKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.input.Focus()
 	}
 	return m, nil
+}
+
+func formatAPIError(err error) string {
+	s := err.Error()
+
+	if idx := strings.LastIndex(s, "{"); idx >= 0 {
+		var body struct {
+			Error struct {
+				Type    string `json:"type"`
+				Message string `json:"message"`
+			} `json:"error"`
+			Message string `json:"message"`
+		}
+		if json.Unmarshal([]byte(s[idx:]), &body) == nil {
+			if body.Error.Message != "" {
+				switch body.Error.Type {
+				case "authentication_error":
+					return "Authentication failed: " + body.Error.Message
+				case "permission_error", "forbidden":
+					return "Access denied: " + body.Error.Message
+				case "rate_limit_error":
+					return "Rate limited: " + body.Error.Message
+				case "not_found_error":
+					return "Model not found: " + body.Error.Message
+				default:
+					return body.Error.Message
+				}
+			}
+			if body.Message != "" {
+				return body.Message
+			}
+		}
+	}
+
+	if strings.Contains(s, "401") || strings.Contains(s, "authentication") {
+		return "Authentication failed: API key is missing or invalid"
+	}
+	if strings.Contains(s, "403") {
+		return "Access denied: insufficient permissions for this model"
+	}
+	if strings.Contains(s, "429") {
+		return "Rate limited: too many requests, please wait and try again"
+	}
+	if strings.Contains(s, "500") || strings.Contains(s, "502") || strings.Contains(s, "503") {
+		return "Provider is temporarily unavailable, please try again"
+	}
+
+	return s
 }

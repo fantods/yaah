@@ -30,6 +30,7 @@ var catalog = []Model{
 		Name:          "GLM 5.1",
 		API:           "zai",
 		Provider:      "zai",
+		Reasoning:     true,
 		MaxTokens:     8192,
 		ContextWindow: 128000,
 		Input:         []string{"text", "image"},

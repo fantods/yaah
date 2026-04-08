@@ -6,6 +6,7 @@ import (
 
 	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
+	openaiprovider "github.com/fantods/yaah/internal/provider/openai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -300,4 +301,133 @@ func TestNewClientUsesDefaultBaseURL(t *testing.T) {
 	client := newClient(model, opts)
 
 	assert.NotNil(t, client)
+}
+
+func TestParseRawChunkReasoningContent(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"delta":{"reasoning_content":"hmm"}}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	require.Len(t, events, 2)
+	_, isThinkingStart := events[0].(provider.EventThinkingStart)
+	assert.True(t, isThinkingStart)
+	thinkingDelta, ok := events[1].(provider.EventThinkingDelta)
+	require.True(t, ok)
+	assert.Equal(t, "hmm", thinkingDelta.Delta)
+}
+
+func TestParseRawChunkTextContent(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"delta":{"content":"hello"}}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	require.Len(t, events, 2)
+	_, isTextStart := events[0].(provider.EventTextStart)
+	assert.True(t, isTextStart)
+	textDelta, ok := events[1].(provider.EventTextDelta)
+	require.True(t, ok)
+	assert.Equal(t, "hello", textDelta.Delta)
+}
+
+func TestParseRawChunkFinishReason(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"finish_reason":"stop"}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	assert.Nil(t, events)
+	assert.Equal(t, message.StopReasonStop, parser.Partial().StopReason)
+}
+
+func TestParseRawChunkUsage(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":0},"completion_tokens_details":{"reasoning_tokens":0}}}`)
+	events := parseRawChunk(parser, rawData)
+
+	assert.Nil(t, events)
+	assert.Equal(t, int64(100), parser.Partial().Usage.Input)
+	assert.Equal(t, int64(50), parser.Partial().Usage.Output)
+}
+
+func TestParseRawChunkEmptyDelta(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"delta":{}}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	assert.Nil(t, events)
+}
+
+func TestParseRawChunkToolCallStart(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_abc123","type":"function","function":{"name":"read_file","arguments":""}}]}}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	require.Len(t, events, 2)
+	_, isStart := events[0].(provider.EventToolCallStart)
+	assert.True(t, isStart)
+	delta, ok := events[1].(provider.EventToolCallDelta)
+	require.True(t, ok)
+	assert.Equal(t, "", delta.Delta)
+}
+
+func TestParseRawChunkToolCallArguments(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	startData := []byte(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_abc123","type":"function","function":{"name":"read_file","arguments":""}}]}}]}`)
+	parseRawChunk(parser, startData)
+
+	argData := []byte(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"","type":"function","function":{"name":"","arguments":"{\"path\":"}}]}}]}`)
+	events := parseRawChunk(parser, argData)
+
+	require.Len(t, events, 1)
+	delta, ok := events[0].(provider.EventToolCallDelta)
+	require.True(t, ok)
+	assert.Equal(t, `{"path":`, delta.Delta)
+}
+
+func TestParseRawChunkToolCallFinishReason(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := openaiprovider.NewChunkParser(model)
+
+	rawData := []byte(`{"choices":[{"finish_reason":"tool_calls"}]}`)
+	events := parseRawChunk(parser, rawData)
+
+	assert.Nil(t, events)
+	assert.Equal(t, message.StopReasonToolUse, parser.Partial().StopReason)
 }

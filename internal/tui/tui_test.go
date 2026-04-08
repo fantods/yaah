@@ -6,6 +6,7 @@ import (
 
 	"github.com/fantods/yaah/internal/message"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPhase0Smoke(t *testing.T) {
@@ -307,4 +308,38 @@ func TestInputStatusModelSetModel(t *testing.T) {
 	assert.Contains(t, view, "Claude Sonnet 4")
 	assert.Contains(t, view, "200.0k")
 	assert.NotContains(t, view, "128.0k")
+}
+
+func TestInputStatusModelThinkingExpandedIdle(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetThinkingExpanded(true)
+
+	view := m.View()
+	assert.Contains(t, view, "thinking:on")
+}
+
+func TestInputStatusModelThinkingExpandedPhase(t *testing.T) {
+	theme := DefaultTheme()
+	m := NewInputStatusModel(theme, "gpt-4", 128000)
+	m.SetWidth(80)
+	m.SetThinkingExpanded(true)
+	m.SetPhase(phaseThinking)
+
+	view := m.View()
+	assert.Contains(t, view, "thinking... [on]")
+}
+
+func TestCommandPaletteToggleThinkingSync(t *testing.T) {
+	commands := commandsForState(stateIdle)
+	var toggleCmd *command
+	for i := range commands {
+		if commands[i].key == "toggle-thinking" {
+			toggleCmd = &commands[i]
+			break
+		}
+	}
+	require.NotNil(t, toggleCmd, "toggle-thinking should be in idle commands")
+	assert.Equal(t, "toggle-thinking", toggleCmd.key)
 }

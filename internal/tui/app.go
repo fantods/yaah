@@ -363,7 +363,10 @@ func (m AppModel) handlePaletteKeys(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		case "clear":
 			m.chat.Clear()
 		case "toggle-thinking":
-			m.thinking.Toggle()
+			next := !m.agent.ThinkingEnabled()
+			m.agent.SetThinkingEnabled(next)
+			m.thinking.SetExpanded(next)
+			m.inputStatus.SetThinkingExpanded(next)
 		case "abort":
 			m.agent.Abort()
 			m.state = stateIdle

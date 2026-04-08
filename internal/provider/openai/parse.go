@@ -1,15 +1,17 @@
 package openai
 
 import (
-	"github.com/openai/openai-go"
+	"encoding/json"
+
 	"github.com/fantods/yaah/internal/message"
 	"github.com/fantods/yaah/internal/provider"
+	"github.com/openai/openai-go"
 )
 
 // ChunkParser maintains state for parsing OpenAI streaming chunks.
 type ChunkParser struct {
-	partial     *message.AssistantMessage
-	model       provider.Model
+	partial *message.AssistantMessage
+	model   provider.Model
 
 	// Current block state
 	currentBlockType string // "text", "thinking", "toolCall"
@@ -87,6 +89,76 @@ func (p *ChunkParser) parseDelta(delta openai.ChatCompletionChunkChoiceDelta) []
 	}
 
 	return events
+}
+
+// ParseReasoningDelta handles a reasoning content delta and returns events.
+func (p *ChunkParser) ParseReasoningDelta(content string) []provider.AssistantMessageEvent {
+	if content == "" {
+		return nil
+	}
+
+	var events []provider.AssistantMessageEvent
+
+	if p.currentBlockType != "thinking" {
+		p.finishCurrentBlock()
+		p.currentBlockType = "thinking"
+		p.partial.Content = append(p.partial.Content, message.ThinkingContent{
+			Type:     "thinking",
+			Thinking: "",
+		})
+		p.currentIndex = int64(len(p.partial.Content) - 1)
+
+		events = append(events, provider.EventThinkingStart{
+			Partial:      p.partial,
+			ContentIndex: int(p.currentIndex),
+		})
+	}
+
+	if tc, ok := p.partial.Content[p.currentIndex].(message.ThinkingContent); ok {
+		tc.Thinking += content
+		p.partial.Content[p.currentIndex] = tc
+	}
+
+	events = append(events, provider.EventThinkingDelta{
+		Partial:      p.partial,
+		ContentIndex: int(p.currentIndex),
+		Delta:        content,
+	})
+
+	return events
+}
+
+// ParseReasoningTextDelta handles a text content delta from a raw SSE stream.
+func (p *ChunkParser) ParseReasoningTextDelta(content string) []provider.AssistantMessageEvent {
+	return p.handleTextDelta(content)
+}
+
+// ParseToolCallDelta handles a tool call delta from a raw SSE stream.
+func (p *ChunkParser) ParseToolCallDelta(index int64, id string, name string, arguments string) []provider.AssistantMessageEvent {
+	tc := openai.ChatCompletionChunkChoiceDeltaToolCall{
+		Index: index,
+		ID:    id,
+		Function: openai.ChatCompletionChunkChoiceDeltaToolCallFunction{
+			Name:      name,
+			Arguments: arguments,
+		},
+	}
+	return p.handleToolCallDelta(tc)
+}
+
+// SetStopReason sets the stop reason and optional error message on the partial.
+func (p *ChunkParser) SetStopReason(reason message.StopReason, errMsg string) {
+	p.partial.StopReason = reason
+	p.partial.ErrorMessage = errMsg
+}
+
+// ParseRawUsage parses a raw JSON usage object and updates the partial.
+func (p *ChunkParser) ParseRawUsage(rawJSON string) {
+	var usage openai.CompletionUsage
+	if json.Unmarshal([]byte(rawJSON), &usage) != nil {
+		return
+	}
+	p.partial.Usage = ParseUsage(usage)
 }
 
 // handleTextDelta handles text content deltas.
@@ -200,6 +272,14 @@ func (p *ChunkParser) finishCurrentBlock() []provider.AssistantMessageEvent {
 				Partial:      p.partial,
 				ContentIndex: int(p.currentIndex),
 				Content:      tc.Text,
+			})
+		}
+	case "thinking":
+		if tc, ok := p.partial.Content[p.currentIndex].(message.ThinkingContent); ok {
+			events = append(events, provider.EventThinkingEnd{
+				Partial:      p.partial,
+				ContentIndex: int(p.currentIndex),
+				Content:      tc.Thinking,
 			})
 		}
 	case "toolCall":

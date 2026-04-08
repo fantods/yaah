@@ -3,11 +3,11 @@ package openai
 import (
 	"testing"
 
+	"github.com/fantods/yaah/internal/message"
+	"github.com/fantods/yaah/internal/provider"
 	"github.com/openai/openai-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/fantods/yaah/internal/message"
-	"github.com/fantods/yaah/internal/provider"
 )
 
 func TestParseChunkText(t *testing.T) {
@@ -231,7 +231,7 @@ func TestParseChunkUsage(t *testing.T) {
 	})
 
 	// Cached tokens subtracted from input
-	assert.Equal(t, int64(80), usage.Input)  // 100 - 20
+	assert.Equal(t, int64(80), usage.Input) // 100 - 20
 	// Output includes reasoning tokens
 	assert.Equal(t, int64(60), usage.Output) // 50 + 10
 	assert.Equal(t, int64(20), usage.CacheRead)
@@ -411,4 +411,106 @@ func TestParseChunkTextThenToolCall(t *testing.T) {
 	tc2, ok := partial.Content[1].(message.ToolCall)
 	require.True(t, ok)
 	assert.Equal(t, "call_1", tc2.ID)
+}
+
+func TestParseReasoningDelta(t *testing.T) {
+	model := provider.Model{
+		ID:       "glm-5.1",
+		Provider: "zai",
+	}
+	parser := NewChunkParser(model)
+
+	events1 := parser.ParseReasoningDelta("Let me think")
+	require.Len(t, events1, 2)
+	_, isThinkingStart := events1[0].(provider.EventThinkingStart)
+	assert.True(t, isThinkingStart, "Expected EventThinkingStart")
+	thinkingDelta, ok := events1[1].(provider.EventThinkingDelta)
+	require.True(t, ok)
+	assert.Equal(t, "Let me think", thinkingDelta.Delta)
+
+	events2 := parser.ParseReasoningDelta(" about this")
+	require.Len(t, events2, 1)
+	thinkingDelta2, ok := events2[0].(provider.EventThinkingDelta)
+	require.True(t, ok)
+	assert.Equal(t, " about this", thinkingDelta2.Delta)
+
+	partial := parser.Partial()
+	require.Len(t, partial.Content, 1)
+	tc, ok := partial.Content[0].(message.ThinkingContent)
+	require.True(t, ok)
+	assert.Equal(t, "Let me think about this", tc.Thinking)
+}
+
+func TestParseReasoningDeltaEmpty(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	events := parser.ParseReasoningDelta("")
+	assert.Nil(t, events)
+}
+
+func TestParseReasoningDeltaThenText(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	_ = parser.ParseReasoningDelta("reasoning here")
+
+	events := parser.ParseReasoningTextDelta("answer")
+	require.Len(t, events, 2)
+	_, isTextStart := events[0].(provider.EventTextStart)
+	assert.True(t, isTextStart, "Expected EventTextStart after reasoning")
+
+	partial := parser.Partial()
+	require.Len(t, partial.Content, 2)
+	_, ok1 := partial.Content[0].(message.ThinkingContent)
+	assert.True(t, ok1, "First block should be thinking")
+	_, ok2 := partial.Content[1].(message.TextContent)
+	assert.True(t, ok2, "Second block should be text")
+}
+
+func TestParseReasoningDeltaFinalizeEmitsThinkingEnd(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	_ = parser.ParseReasoningDelta("deep thoughts")
+
+	events := parser.Finalize()
+	require.Len(t, events, 2)
+	_, isThinkingEnd := events[0].(provider.EventThinkingEnd)
+	assert.True(t, isThinkingEnd, "Expected EventThinkingEnd on finalize")
+	_, isDone := events[1].(provider.EventDone)
+	assert.True(t, isDone, "Expected EventDone")
+}
+
+func TestSetStopReason(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	parser.SetStopReason(message.StopReasonStop, "")
+	assert.Equal(t, message.StopReasonStop, parser.Partial().StopReason)
+	assert.Empty(t, parser.Partial().ErrorMessage)
+
+	parser.SetStopReason(message.StopReasonError, "something broke")
+	assert.Equal(t, message.StopReasonError, parser.Partial().StopReason)
+	assert.Equal(t, "something broke", parser.Partial().ErrorMessage)
+}
+
+func TestParseRawUsage(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	parser.ParseRawUsage(`{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":20},"completion_tokens_details":{"reasoning_tokens":10}}`)
+
+	usage := parser.Partial().Usage
+	assert.Equal(t, int64(80), usage.Input)
+	assert.Equal(t, int64(60), usage.Output)
+	assert.Equal(t, int64(20), usage.CacheRead)
+}
+
+func TestParseRawUsageInvalid(t *testing.T) {
+	model := provider.Model{ID: "test", Provider: "test"}
+	parser := NewChunkParser(model)
+
+	parser.ParseRawUsage(`{invalid json`)
+	assert.Equal(t, int64(0), parser.Partial().Usage.Input)
 }
